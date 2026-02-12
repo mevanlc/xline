@@ -1,0 +1,248 @@
+use serde::{Deserialize, Serialize};
+
+use crate::config::types::{
+    AnsiColor, ColorConfig, ComponentConfig, ComponentId, IconConfig, StyleConfig, StyleMode,
+    TextStyleConfig,
+};
+
+/// A complete user theme — settings + colors + icons for all components.
+/// Stored as a .toml file under ~/.claude/ccxline/themes/{Name}.toml
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserTheme {
+    /// Whether this is the active theme.
+    pub active: bool,
+
+    /// Style configuration (mode: plain/nerd_font/powerline).
+    pub style: StyleConfig,
+
+    /// All component configurations, in display order.
+    /// Separator should always be last.
+    pub components: Vec<ComponentConfig>,
+}
+
+impl UserTheme {
+    /// Create a default theme with sensible starting values.
+    pub fn default_theme() -> Self {
+        use ComponentId::*;
+
+        let components = vec![
+            ComponentConfig {
+                id: Model,
+                enabled: true,
+                icon: IconConfig {
+                    plain: "\u{1f916}".into(), // 🤖
+                    nerd_font: "\u{e26d}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 14 }),
+                    text: Some(AnsiColor::Color16 { c16: 14 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: Directory,
+                enabled: true,
+                icon: IconConfig {
+                    plain: "\u{1f4c1}".into(), // 📁
+                    nerd_font: "\u{f024b}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 12 }),
+                    text: Some(AnsiColor::Color16 { c16: 12 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: Git,
+                enabled: true,
+                icon: IconConfig {
+                    plain: "\u{1f33f}".into(), // 🌿
+                    nerd_font: "\u{f02a2}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 10 }),
+                    text: Some(AnsiColor::Color16 { c16: 10 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: ContextWindow,
+                enabled: true,
+                icon: IconConfig {
+                    plain: "\u{26a1}".into(), // ⚡
+                    nerd_font: "\u{f0e7}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 11 }),
+                    text: Some(AnsiColor::Color16 { c16: 11 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: Usage,
+                enabled: false,
+                icon: IconConfig {
+                    plain: "\u{1f4ca}".into(), // 📊
+                    nerd_font: "\u{f080}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 13 }),
+                    text: Some(AnsiColor::Color16 { c16: 13 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: Cost,
+                enabled: false,
+                icon: IconConfig {
+                    plain: "\u{1f4b0}".into(), // 💰
+                    nerd_font: "\u{f0155}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 11 }),
+                    text: Some(AnsiColor::Color16 { c16: 11 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: Session,
+                enabled: false,
+                icon: IconConfig {
+                    plain: "\u{23f1}\u{fe0f}".into(), // ⏱️
+                    nerd_font: "\u{f64f}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 8 }),
+                    text: Some(AnsiColor::Color16 { c16: 8 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: OutputStyle,
+                enabled: false,
+                icon: IconConfig {
+                    plain: "\u{1f4dd}".into(), // 📝
+                    nerd_font: "\u{f0f6}".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 7 }),
+                    text: Some(AnsiColor::Color16 { c16: 7 }),
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+            ComponentConfig {
+                id: Separator,
+                enabled: true,
+                icon: IconConfig {
+                    plain: " | ".into(),
+                    nerd_font: " | ".into(),
+                },
+                colors: ColorConfig {
+                    icon: Some(AnsiColor::Color16 { c16: 8 }),
+                    text: None,
+                    background: None,
+                },
+                styles: TextStyleConfig { text_bold: false },
+                options: Default::default(),
+            },
+        ];
+
+        Self {
+            active: true,
+            style: StyleConfig {
+                mode: StyleMode::Plain,
+            },
+            components: components,
+        }
+    }
+
+    /// Get a component config by id.
+    pub fn get_component(&self, id: ComponentId) -> Option<&ComponentConfig> {
+        self.components.iter().find(|c| c.id == id)
+    }
+
+    /// Get a mutable component config by id.
+    pub fn get_component_mut(&mut self, id: ComponentId) -> Option<&mut ComponentConfig> {
+        self.components.iter_mut().find(|c| c.id == id)
+    }
+
+    /// Get the separator component.
+    pub fn separator(&self) -> Option<&ComponentConfig> {
+        self.get_component(ComponentId::Separator)
+    }
+
+    /// Get the separator glyph for the current style mode.
+    pub fn separator_glyph(&self) -> &str {
+        self.separator()
+            .map(|s| match self.style.mode {
+                StyleMode::Plain => s.icon.plain.as_str(),
+                StyleMode::NerdFont | StyleMode::Powerline => s.icon.nerd_font.as_str(),
+            })
+            .unwrap_or(" | ")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_theme_has_all_components() {
+        let theme = UserTheme::default_theme();
+        for id in ComponentId::ALL {
+            assert!(
+                theme.get_component(*id).is_some(),
+                "missing component: {:?}",
+                id
+            );
+        }
+    }
+
+    #[test]
+    fn test_separator_is_last() {
+        let theme = UserTheme::default_theme();
+        assert_eq!(theme.components.last().unwrap().id, ComponentId::Separator);
+    }
+
+    #[test]
+    fn test_default_theme_is_active() {
+        let theme = UserTheme::default_theme();
+        assert!(theme.active);
+    }
+
+    #[test]
+    fn test_roundtrip_toml() {
+        let theme = UserTheme::default_theme();
+        let toml_str = toml::to_string_pretty(&theme).unwrap();
+        let parsed: UserTheme = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.active, theme.active);
+        assert_eq!(parsed.style.mode, theme.style.mode);
+        assert_eq!(parsed.components.len(), theme.components.len());
+        for (a, b) in parsed.components.iter().zip(theme.components.iter()) {
+            assert_eq!(a.id, b.id);
+            assert_eq!(a.enabled, b.enabled);
+            assert_eq!(a.icon.plain, b.icon.plain);
+            assert_eq!(a.icon.nerd_font, b.icon.nerd_font);
+            assert_eq!(a.colors.icon, b.colors.icon);
+            assert_eq!(a.colors.text, b.colors.text);
+            assert_eq!(a.colors.background, b.colors.background);
+            assert_eq!(a.styles.text_bold, b.styles.text_bold);
+        }
+    }
+}
