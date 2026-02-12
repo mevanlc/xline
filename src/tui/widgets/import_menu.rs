@@ -1,4 +1,5 @@
 use crate::config::manager;
+use crate::config::types::ComponentId;
 use ratatui::{
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -6,6 +7,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, List, ListItem},
     Frame,
 };
+use unicode_width::UnicodeWidthStr;
 
 pub fn render_colors(f: &mut Frame, area: Rect, selection: usize) {
     let schemes = crate::presets::color_schemes::all();
@@ -57,13 +59,72 @@ pub fn render_icons(f: &mut Frame, area: Rect, selection: usize) {
     let icon_sets = crate::presets::icon_sets::all();
     let user_themes = manager::list_themes().unwrap_or_default();
 
+    // Compute max name display width for alignment
+    let max_name_width = icon_sets
+        .iter()
+        .map(|s| UnicodeWidthStr::width(s.name))
+        .chain(user_themes.iter().map(|(n, _)| UnicodeWidthStr::width(n.as_str())))
+        .max()
+        .unwrap_or(0);
+
+    // Collect per-set component icons and separator (plain mode)
+    let icon_rows: Vec<(Vec<&str>, &str)> = icon_sets
+        .iter()
+        .map(|set| {
+            let icons: Vec<&str> = set
+                .icons_iter()
+                .filter(|(id, _)| *id != ComponentId::Separator)
+                .map(|(_, ic)| ic.plain)
+                .collect();
+            let sep = set
+                .get(ComponentId::Separator)
+                .map(|ic| if ic.plain.is_empty() { ic.nerd_font } else { ic.plain })
+                .unwrap_or(" ");
+            (icons, sep)
+        })
+        .collect();
+
+    // Per-icon-column max display width
+    let num_cols = icon_rows.iter().map(|(r, _)| r.len()).max().unwrap_or(0);
+    let col_widths: Vec<usize> = (0..num_cols)
+        .map(|col| {
+            icon_rows
+                .iter()
+                .filter_map(|(row, _)| row.get(col))
+                .map(|icon| UnicodeWidthStr::width(*icon))
+                .max()
+                .unwrap_or(1)
+        })
+        .collect();
+
+    // Max separator display width across all sets
+    let max_sep_width = icon_rows
+        .iter()
+        .map(|(_, sep)| UnicodeWidthStr::width(*sep).max(1))
+        .max()
+        .unwrap_or(1);
+
     let mut items: Vec<ListItem> = Vec::new();
 
-    for (i, set) in icon_sets.iter().enumerate() {
+    for (i, (set, (icons, sep))) in icon_sets.iter().zip(icon_rows.iter()).enumerate() {
         let style = item_style(i, selection);
         let cursor = if i == selection { "> " } else { "  " };
+        let name_pad = max_name_width - UnicodeWidthStr::width(set.name);
+        let mut line = format!("{}{}{} ", cursor, set.name, " ".repeat(name_pad));
+        for (col, icon) in icons.iter().enumerate() {
+            if col > 0 {
+                let sep_w = UnicodeWidthStr::width(*sep).max(1);
+                let sep_pad = max_sep_width - sep_w;
+                line.push_str(sep);
+                line.push_str(&" ".repeat(sep_pad));
+            }
+            let w = UnicodeWidthStr::width(*icon);
+            let pad = col_widths.get(col).unwrap_or(&1) - w;
+            line.push_str(icon);
+            line.push_str(&" ".repeat(pad));
+        }
         items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{} - {}", cursor, set.name, set.description),
+            line.trim_end().to_string(),
             style,
         ))));
     }
@@ -79,8 +140,9 @@ pub fn render_icons(f: &mut Frame, area: Rect, selection: usize) {
         let idx = icon_sets.len() + i;
         let style = item_style(idx, selection);
         let cursor = if idx == selection { "> " } else { "  " };
+        let name_pad = max_name_width - UnicodeWidthStr::width(name.as_str());
         items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{}", cursor, name),
+            format!("{}{}{} (theme)", cursor, name, " ".repeat(name_pad)),
             style,
         ))));
     }

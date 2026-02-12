@@ -23,8 +23,8 @@ impl HelpBarWidget {
 
         // Keymap (left)
         let grid = key_hints::render_grid(&[
-            &[("Tab", "Panel"), ("\u{2191}\u{2193}", "Nav"),    ("\u{23ce}", "Edit"),   ("I", "Colors")],
-            &[("^S", "Menu"),   ("\u{2190}\u{2192}", "Theme"),  ("SP", "Toggle"), ("K", "Icons")],
+            &[("Tab", "Panel"), ("\u{2191}\u{2193}", "Nav"),    ("\u{23ce}", "Edit"),     ("I", "Colors")],
+            &[("^S", "Menu"),   ("\u{2190}\u{2192}", "Theme"),  ("\u{23e1}", "Toggle"),  ("K", "Icons")],
         ]);
 
         let keymap_block = Block::default()
@@ -44,7 +44,7 @@ impl HelpBarWidget {
             .title(" Status ");
 
         let status_text = match status {
-            Some(msg) => Span::styled(msg, Style::default().fg(Color::Blue)),
+            Some(msg) => Span::styled(format!(" {}", msg), Style::default().fg(Color::Blue)),
             None => Span::raw(""),
         };
 

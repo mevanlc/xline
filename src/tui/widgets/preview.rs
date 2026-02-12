@@ -25,11 +25,14 @@ impl PreviewWidget {
 
 fn build_preview_spans(theme: &UserTheme) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
-    let sep_glyph = theme.separator_glyph().to_string();
-    let sep_color = theme
-        .separator()
-        .and_then(|s| s.colors.icon.as_ref())
-        .cloned();
+    let sep = theme.separator();
+    let sep_enabled = sep.map_or(false, |s| s.enabled);
+    let sep_glyph = if sep_enabled {
+        theme.separator_glyph().to_string()
+    } else {
+        String::new()
+    };
+    let sep_color = sep.and_then(|s| s.colors.icon.as_ref()).cloned();
 
     let enabled: Vec<_> = theme
         .components

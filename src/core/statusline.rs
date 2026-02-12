@@ -29,7 +29,12 @@ impl<'a> StatusLineGenerator<'a> {
             return String::new();
         }
 
-        let sep_glyph = self.theme.separator_glyph();
+        let sep_enabled = self.theme.separator().map_or(false, |s| s.enabled);
+        let sep_glyph = if sep_enabled {
+            self.theme.separator_glyph()
+        } else {
+            ""
+        };
 
         // Check if powerline mode with arrow separator
         if sep_glyph.contains('\u{e0b0}') || sep_glyph.is_empty() {

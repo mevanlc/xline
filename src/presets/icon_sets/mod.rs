@@ -34,9 +34,34 @@ impl IconSet {
         }
     }
 
+    /// Iterate over all (ComponentId, ComponentIcons) entries.
+    pub fn icons_iter(&self) -> impl Iterator<Item = &(ComponentId, ComponentIcons)> {
+        self.entries.iter()
+    }
+
     /// Get icons for a specific component.
     pub fn get(&self, id: ComponentId) -> Option<&ComponentIcons> {
         self.entries.iter().find(|(cid, _)| *cid == id).map(|(_, i)| i)
+    }
+
+    /// Get a preview of all icons (plain mode) as a string, excluding separator.
+    pub fn preview_plain(&self) -> String {
+        self.entries
+            .iter()
+            .filter(|(id, _)| *id != ComponentId::Separator)
+            .map(|(_, icons)| icons.plain)
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Get a preview of all icons (nerd font mode) as a string, excluding separator.
+    pub fn preview_nerd_font(&self) -> String {
+        self.entries
+            .iter()
+            .filter(|(id, _)| *id != ComponentId::Separator)
+            .map(|(_, icons)| icons.nerd_font)
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     /// Apply this icon set to a theme's components (mutates in place).

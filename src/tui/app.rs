@@ -272,7 +272,10 @@ impl App {
                     self.move_selection(1);
                 }
             }
-            KeyCode::Enter | KeyCode::Char(' ') => self.toggle_current(),
+            KeyCode::Enter => {
+                self.selected_panel = Panel::Editor;
+            }
+            KeyCode::Char(' ') => self.toggle_current(),
             KeyCode::Left => self.switch_theme(-1),
             KeyCode::Right => self.switch_theme(1),
             KeyCode::Char('i') | KeyCode::Char('I') => {
