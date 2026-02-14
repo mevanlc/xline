@@ -45,6 +45,26 @@ impl ColorScheme {
         self.entries.iter().find(|(cid, _)| *cid == id).map(|(_, c)| c)
     }
 
+    /// Whether any single theme's components supply all of this scheme's colors.
+    pub fn is_supplied_by(&self, theme_components: &[crate::config::types::ComponentConfig]) -> bool {
+        self.entries.iter().all(|(id, colors)| {
+            theme_components
+                .iter()
+                .find(|c| c.id == *id)
+                .is_some_and(|comp| {
+                    comp.colors.icon == colors.icon
+                        && comp.colors.text == colors.text
+                        && comp.colors.background == colors.background
+                        && comp.styles.text_bold == colors.text_bold
+                })
+        })
+    }
+
+    /// Whether this color scheme is designed for powerline mode.
+    pub fn is_powerline(&self) -> bool {
+        self.name.to_ascii_lowercase().contains("powerline")
+    }
+
     /// Apply this color scheme to a theme's components (mutates in place).
     pub fn apply_to(
         &self,

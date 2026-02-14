@@ -1,0 +1,509 @@
+use std::collections::HashMap;
+
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Span;
+use unicode_width::UnicodeWidthStr;
+
+use crate::config::types::{AnsiColor, ComponentConfig, ComponentId, StyleMode};
+
+// ---------------------------------------------------------------------------
+// Data model
+// ---------------------------------------------------------------------------
+
+/// A fully-resolved segment ready for rendering.
+pub struct Segment {
+    pub id: ComponentId,
+    pub icon: String,
+    pub text: String,
+    pub secondary: String,
+    pub icon_color: Option<AnsiColor>,
+    pub text_color: Option<AnsiColor>,
+    pub bg: Option<AnsiColor>,
+    pub text_bold: bool,
+}
+
+/// Separator between two adjacent segments, fully resolved.
+pub struct SepToken {
+    pub glyph: String,
+    pub fg: Option<AnsiColor>,
+    pub bg: Option<AnsiColor>,
+}
+
+pub enum RenderItem {
+    Seg(Segment),
+    Sep(SepToken),
+}
+
+/// A render-ready statusline: alternating segments and separators.
+pub struct RenderLine {
+    pub items: Vec<RenderItem>,
+}
+
+// ---------------------------------------------------------------------------
+// Builder
+// ---------------------------------------------------------------------------
+
+/// Text content for a single component: (primary, secondary).
+pub type SegmentText = (String, String);
+
+/// Build a render-ready line from theme components, style mode, and text content.
+///
+/// `texts` maps ComponentId → (primary, secondary). Components missing from the
+/// map are skipped (useful for real statusline where a collector returned None).
+pub fn build_render_line(
+    components: &[ComponentConfig],
+    mode: StyleMode,
+    texts: &HashMap<ComponentId, SegmentText>,
+) -> RenderLine {
+    let is_powerline = mode == StyleMode::Powerline;
+
+    // Gather separator info
+    let sep_cfg = components.iter().find(|c| c.id == ComponentId::Separator);
+    let sep_enabled = sep_cfg.map_or(false, |s| s.enabled);
+    let sep_glyph = sep_cfg
+        .map(|s| match mode {
+            StyleMode::Plain => s.icon.plain.as_str(),
+            StyleMode::NerdFont | StyleMode::Powerline => s.icon.nerd_font.as_str(),
+        })
+        .unwrap_or(" | ");
+    let sep_icon_color = sep_cfg.and_then(|s| s.colors.icon.clone());
+
+    // Build segments for enabled, non-separator components that have text
+    let enabled: Vec<&ComponentConfig> = components
+        .iter()
+        .filter(|c| c.enabled && c.id != ComponentId::Separator && texts.contains_key(&c.id))
+        .collect();
+
+    let mut items: Vec<RenderItem> = Vec::new();
+
+    for (i, comp) in enabled.iter().enumerate() {
+        // Insert separator before every segment after the first
+        if i > 0 {
+            if is_powerline {
+                let prev_bg = enabled[i - 1].colors.background.clone();
+                let curr_bg = comp.colors.background.clone();
+                items.push(RenderItem::Sep(SepToken {
+                    glyph: "\u{e0b0}".into(),
+                    fg: prev_bg,
+                    bg: curr_bg,
+                }));
+            } else if sep_enabled {
+                items.push(RenderItem::Sep(SepToken {
+                    glyph: sep_glyph.to_string(),
+                    fg: sep_icon_color.clone(),
+                    bg: None,
+                }));
+            }
+        }
+
+        let icon = match mode {
+            StyleMode::Plain => comp.icon.plain.clone(),
+            StyleMode::NerdFont | StyleMode::Powerline => comp.icon.nerd_font.clone(),
+        };
+
+        let (primary, secondary) = texts.get(&comp.id).cloned().unwrap_or_default();
+
+        items.push(RenderItem::Seg(Segment {
+            id: comp.id,
+            icon,
+            text: primary,
+            secondary,
+            icon_color: comp.colors.icon.clone(),
+            text_color: comp.colors.text.clone(),
+            bg: comp.colors.background.clone(),
+            text_bold: comp.styles.text_bold,
+        }));
+    }
+
+    RenderLine { items }
+}
+
+/// Pad icons across multiple RenderLines so segment columns align.
+///
+/// For each segment position, finds the max icon display width across all
+/// lines and right-pads shorter icons with spaces to match.
+pub fn align_lines(lines: &mut [RenderLine]) {
+    // Collect segment icon widths per position across all lines
+    let max_positions = lines
+        .iter()
+        .map(|l| l.items.iter().filter(|i| matches!(i, RenderItem::Seg(_))).count())
+        .max()
+        .unwrap_or(0);
+
+    // Find max icon width at each segment position
+    let mut max_widths = vec![0usize; max_positions];
+    for line in lines.iter() {
+        let mut pos = 0;
+        for item in &line.items {
+            if let RenderItem::Seg(seg) = item {
+                if pos < max_positions {
+                    let w = UnicodeWidthStr::width(seg.icon.as_str());
+                    max_widths[pos] = max_widths[pos].max(w);
+                }
+                pos += 1;
+            }
+        }
+    }
+
+    // Pad each icon to its column's max width
+    for line in lines.iter_mut() {
+        let mut pos = 0;
+        for item in &mut line.items {
+            if let RenderItem::Seg(seg) = item {
+                if pos < max_positions {
+                    let w = UnicodeWidthStr::width(seg.icon.as_str());
+                    let pad = max_widths[pos].saturating_sub(w);
+                    if pad > 0 {
+                        seg.icon.push_str(&" ".repeat(pad));
+                    }
+                }
+                pos += 1;
+            }
+        }
+    }
+}
+
+/// Like `align_lines` but takes `&mut [&mut RenderLine]` so you can align
+/// across separately-owned collections.
+pub fn align_lines_refs(lines: &mut [&mut RenderLine]) {
+    let max_positions = lines
+        .iter()
+        .map(|l| l.items.iter().filter(|i| matches!(i, RenderItem::Seg(_))).count())
+        .max()
+        .unwrap_or(0);
+
+    let mut max_widths = vec![0usize; max_positions];
+    for line in lines.iter() {
+        let mut pos = 0;
+        for item in &line.items {
+            if let RenderItem::Seg(seg) = item {
+                if pos < max_positions {
+                    let w = UnicodeWidthStr::width(seg.icon.as_str());
+                    max_widths[pos] = max_widths[pos].max(w);
+                }
+                pos += 1;
+            }
+        }
+    }
+
+    for line in lines.iter_mut() {
+        let mut pos = 0;
+        for item in &mut line.items {
+            if let RenderItem::Seg(seg) = item {
+                if pos < max_positions {
+                    let w = UnicodeWidthStr::width(seg.icon.as_str());
+                    let pad = max_widths[pos].saturating_sub(w);
+                    if pad > 0 {
+                        seg.icon.push_str(&" ".repeat(pad));
+                    }
+                }
+                pos += 1;
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Demo text helpers
+// ---------------------------------------------------------------------------
+
+/// Full demo text for the TUI preview bar.
+pub fn demo_texts_full() -> HashMap<ComponentId, SegmentText> {
+    HashMap::from([
+        (ComponentId::Model, ("Sonnet 4.5".into(), String::new())),
+        (ComponentId::Directory, ("project".into(), String::new())),
+        (ComponentId::Git, ("main \u{2713}".into(), String::new())),
+        (ComponentId::ContextWindow, ("12% \u{b7} 24k tokens".into(), String::new())),
+        (ComponentId::Usage, ("45%".into(), String::new())),
+        (ComponentId::Cost, ("$1.23".into(), String::new())),
+        (ComponentId::Session, ("5m".into(), String::new())),
+        (ComponentId::OutputStyle, ("concise".into(), String::new())),
+    ])
+}
+
+/// Compact demo text for import menu previews.
+pub fn demo_texts_compact() -> HashMap<ComponentId, SegmentText> {
+    HashMap::from([
+        (ComponentId::Model, ("Model".into(), String::new())),
+        (ComponentId::Directory, ("prj".into(), String::new())),
+        (ComponentId::Git, ("main \u{2713}".into(), String::new())),
+        (ComponentId::ContextWindow, ("12%".into(), String::new())),
+        (ComponentId::Usage, ("45%".into(), String::new())),
+        (ComponentId::Cost, ("$1".into(), String::new())),
+        (ComponentId::Session, ("5m".into(), String::new())),
+        (ComponentId::OutputStyle, ("concise".into(), String::new())),
+    ])
+}
+
+/// Build texts from real ComponentData (for statusline mode).
+pub fn texts_from_data(
+    data: &[(ComponentConfig, crate::core::components::ComponentData)],
+) -> HashMap<ComponentId, SegmentText> {
+    data.iter()
+        .map(|(cfg, d)| (cfg.id, (d.primary.clone(), d.secondary.clone())))
+        .collect()
+}
+
+/// Build a texts map that also carries dynamic_icon metadata.
+/// Returns (texts, dynamic_icons) where dynamic_icons maps ComponentId → icon override.
+pub fn texts_and_icons_from_data(
+    data: &[(ComponentConfig, crate::core::components::ComponentData)],
+) -> (HashMap<ComponentId, SegmentText>, HashMap<ComponentId, String>) {
+    let mut texts = HashMap::new();
+    let mut icons = HashMap::new();
+    for (cfg, d) in data {
+        texts.insert(cfg.id, (d.primary.clone(), d.secondary.clone()));
+        if let Some(dynamic) = d.metadata.get("dynamic_icon") {
+            icons.insert(cfg.id, dynamic.clone());
+        }
+    }
+    (texts, icons)
+}
+
+// ---------------------------------------------------------------------------
+// Ratatui Span backend
+// ---------------------------------------------------------------------------
+
+/// Convert a RenderLine to ratatui Spans for TUI display.
+pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+
+    for item in &line.items {
+        match item {
+            RenderItem::Sep(sep) => {
+                let style = ansi_to_style_with_bg(sep.fg.as_ref(), sep.bg.as_ref(), false);
+                spans.push(Span::styled(sep.glyph.clone(), style));
+            }
+            RenderItem::Seg(seg) => {
+                let icon_style = ansi_to_style_with_bg(
+                    seg.icon_color.as_ref(),
+                    seg.bg.as_ref(),
+                    false,
+                );
+                let text_style = ansi_to_style_with_bg(
+                    seg.text_color.as_ref(),
+                    seg.bg.as_ref(),
+                    seg.text_bold,
+                );
+
+                if seg.bg.is_some() {
+                    spans.push(Span::styled(format!(" {} ", seg.icon), icon_style));
+                    if !seg.text.is_empty() {
+                        spans.push(Span::styled(format!("{} ", seg.text), text_style));
+                    }
+                    if !seg.secondary.is_empty() {
+                        spans.push(Span::styled(format!("{} ", seg.secondary), text_style));
+                    }
+                } else {
+                    if seg.text.is_empty() && seg.secondary.is_empty() {
+                        // Icons-only mode: just the icon, no trailing space
+                        spans.push(Span::styled(seg.icon.clone(), icon_style));
+                    } else {
+                        spans.push(Span::styled(format!("{} ", seg.icon), icon_style));
+                        spans.push(Span::styled(seg.text.clone(), text_style));
+                        if !seg.secondary.is_empty() {
+                            spans.push(Span::styled(
+                                format!(" {}", seg.secondary),
+                                text_style,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if spans.is_empty() {
+        spans.push(Span::raw("(no enabled components)"));
+    }
+
+    spans
+}
+
+// ---------------------------------------------------------------------------
+// ANSI string backend
+// ---------------------------------------------------------------------------
+
+/// Convert a RenderLine to an ANSI escape-coded string for terminal output.
+pub fn render_ansi(line: &RenderLine) -> String {
+    let mut result = String::new();
+    let has_powerline = line.items.iter().any(|item| matches!(item, RenderItem::Sep(s) if s.glyph == "\u{e0b0}"));
+
+    for item in &line.items {
+        match item {
+            RenderItem::Sep(sep) => {
+                result.push_str(&ansi_sep(sep));
+            }
+            RenderItem::Seg(seg) => {
+                result.push_str(&ansi_segment(seg));
+            }
+        }
+    }
+
+    if has_powerline && !result.is_empty() {
+        result.push_str("\x1b[0m");
+    }
+
+    result
+}
+
+fn ansi_segment(seg: &Segment) -> String {
+    if let Some(bg) = &seg.bg {
+        let bg_code = bg_ansi_code(bg);
+        let icon_colored = match &seg.icon_color {
+            Some(c) => fg_ansi_no_reset(c, &seg.icon),
+            None => seg.icon.clone(),
+        };
+        let text_styled = style_no_reset(&seg.text, seg.text_color.as_ref(), seg.text_bold);
+        let mut content = format!(" {} {} ", icon_colored, text_styled);
+        if !seg.secondary.is_empty() {
+            let sec = style_no_reset(&seg.secondary, seg.text_color.as_ref(), seg.text_bold);
+            content.push_str(&format!("{} ", sec));
+        }
+        format!("{}{}\x1b[49m", bg_code, content)
+    } else {
+        let icon_colored = apply_color(&seg.icon, seg.icon_color.as_ref());
+        let text_styled = apply_style(&seg.text, seg.text_color.as_ref(), seg.text_bold);
+        let mut out = format!("{} {}", icon_colored, text_styled);
+        if !seg.secondary.is_empty() {
+            out.push_str(&format!(
+                " {}",
+                apply_style(&seg.secondary, seg.text_color.as_ref(), seg.text_bold)
+            ));
+        }
+        out
+    }
+}
+
+fn ansi_sep(sep: &SepToken) -> String {
+    match (&sep.fg, &sep.bg) {
+        (Some(fg), Some(bg)) => {
+            format!("{}{}{}\x1b[0m", bg_ansi_code(bg), fg_ansi_code(fg), sep.glyph)
+        }
+        (Some(fg), None) => {
+            format!("{}{}\x1b[0m", fg_ansi_code(fg), sep.glyph)
+        }
+        (None, Some(bg)) => {
+            format!("{}{}\x1b[0m", bg_ansi_code(bg), sep.glyph)
+        }
+        (None, None) => sep.glyph.clone(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ANSI escape helpers
+// ---------------------------------------------------------------------------
+
+fn apply_color(text: &str, color: Option<&AnsiColor>) -> String {
+    match color {
+        Some(c) => format!("{}{}\x1b[0m", fg_ansi_code(c), text),
+        None => text.to_string(),
+    }
+}
+
+fn apply_style(text: &str, color: Option<&AnsiColor>, bold: bool) -> String {
+    let mut codes = Vec::new();
+    if bold {
+        codes.push("1".into());
+    }
+    if let Some(c) = color {
+        codes.push(fg_sgr(c));
+    }
+    if codes.is_empty() {
+        text.to_string()
+    } else {
+        format!("\x1b[{}m{}\x1b[0m", codes.join(";"), text)
+    }
+}
+
+fn fg_ansi_no_reset(color: &AnsiColor, text: &str) -> String {
+    format!("{}{}", fg_ansi_code(color), text)
+}
+
+fn style_no_reset(text: &str, color: Option<&AnsiColor>, bold: bool) -> String {
+    let mut codes = Vec::new();
+    if bold {
+        codes.push("1".into());
+    }
+    if let Some(c) = color {
+        codes.push(fg_sgr(c));
+    }
+    if codes.is_empty() {
+        text.to_string()
+    } else {
+        format!("\x1b[{}m{}", codes.join(";"), text)
+    }
+}
+
+fn fg_ansi_code(color: &AnsiColor) -> String {
+    format!("\x1b[{}m", fg_sgr(color))
+}
+
+fn fg_sgr(color: &AnsiColor) -> String {
+    match color {
+        AnsiColor::Color16 { c16 } => {
+            if *c16 < 8 { (30 + c16).to_string() } else { (90 + (c16 - 8)).to_string() }
+        }
+        AnsiColor::Color256 { c256 } => format!("38;5;{}", c256),
+        AnsiColor::Rgb { r, g, b } => format!("38;2;{};{};{}", r, g, b),
+    }
+}
+
+fn bg_ansi_code(color: &AnsiColor) -> String {
+    match color {
+        AnsiColor::Color16 { c16 } => {
+            let code = if *c16 < 8 { 40 + c16 } else { 100 + (c16 - 8) };
+            format!("\x1b[{}m", code)
+        }
+        AnsiColor::Color256 { c256 } => format!("\x1b[48;5;{}m", c256),
+        AnsiColor::Rgb { r, g, b } => format!("\x1b[48;2;{};{};{}m", r, g, b),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Ratatui color conversion helpers
+// ---------------------------------------------------------------------------
+
+fn ansi_to_style_with_bg(
+    fg: Option<&AnsiColor>,
+    bg: Option<&AnsiColor>,
+    bold: bool,
+) -> Style {
+    let mut style = Style::default();
+    if let Some(c) = fg {
+        style = style.fg(ansi_to_ratatui_color(c));
+    }
+    if let Some(c) = bg {
+        style = style.bg(ansi_to_ratatui_color(c));
+    }
+    if bold {
+        style = style.add_modifier(Modifier::BOLD);
+    }
+    style
+}
+
+pub fn ansi_to_ratatui_color(color: &AnsiColor) -> Color {
+    match color {
+        AnsiColor::Color16 { c16 } => match c16 {
+            0 => Color::Black,
+            1 => Color::Red,
+            2 => Color::Green,
+            3 => Color::Yellow,
+            4 => Color::Blue,
+            5 => Color::Magenta,
+            6 => Color::Cyan,
+            7 => Color::Gray,
+            8 => Color::DarkGray,
+            9 => Color::LightRed,
+            10 => Color::LightGreen,
+            11 => Color::LightYellow,
+            12 => Color::LightBlue,
+            13 => Color::LightMagenta,
+            14 => Color::LightCyan,
+            15 => Color::White,
+            _ => Color::Reset,
+        },
+        AnsiColor::Color256 { c256 } => Color::Indexed(*c256),
+        AnsiColor::Rgb { r, g, b } => Color::Rgb(*r, *g, *b),
+    }
+}

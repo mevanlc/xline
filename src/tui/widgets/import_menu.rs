@@ -1,5 +1,7 @@
 use crate::config::manager;
-use crate::config::types::ComponentId;
+use crate::config::theme::UserTheme;
+use crate::config::types::StyleMode;
+use crate::core::render;
 use ratatui::{
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -7,42 +9,113 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, List, ListItem},
     Frame,
 };
-use unicode_width::UnicodeWidthStr;
 
-pub fn render_colors(f: &mut Frame, area: Rect, selection: usize) {
-    let schemes = crate::presets::color_schemes::all();
+pub fn render_colors(f: &mut Frame, area: Rect, selection: usize, theme: &UserTheme) {
     let user_themes = manager::list_themes().unwrap_or_default();
+    let user_theme_data = load_user_theme_data(&user_themes);
+    let schemes = filter_color_schemes(&user_theme_data);
+    let texts = render::demo_texts_compact();
+
+    // Pad names to max width
+    let max_name_len = schemes
+        .iter()
+        .map(|s| s.name.len())
+        .chain(user_themes.iter().map(|(n, _)| n.len()))
+        .max()
+        .unwrap_or(0);
+
+    // Build render lines for presets
+    let mut render_lines: Vec<render::RenderLine> = schemes
+        .iter()
+        .map(|scheme| {
+            let mut preview_theme = theme.clone();
+            scheme.apply_to(&mut preview_theme.components);
+            let mode = if scheme.is_powerline() {
+                if let Some(pl_icons) = crate::presets::icon_sets::find("Powerline") {
+                    pl_icons.apply_to(&mut preview_theme.components);
+                }
+                StyleMode::Powerline
+            } else {
+                preview_theme.style.mode
+            };
+            render::build_render_line(&preview_theme.components, mode, &texts)
+        })
+        .collect();
+
+    // Build render lines for user themes (apply their colors to current theme's icons)
+    let mut user_render_lines: Vec<render::RenderLine> = user_theme_data
+        .iter()
+        .map(|ut| {
+            let mut preview_theme = theme.clone();
+            for src in &ut.components {
+                if let Some(dest) = preview_theme.components.iter_mut().find(|c| c.id == src.id) {
+                    dest.colors = src.colors.clone();
+                    dest.styles = src.styles.clone();
+                }
+            }
+            render::build_render_line(&preview_theme.components, preview_theme.style.mode, &texts)
+        })
+        .collect();
+
+    // Align all lines together
+    let mut all_lines: Vec<&mut render::RenderLine> = render_lines
+        .iter_mut()
+        .chain(user_render_lines.iter_mut())
+        .collect();
+    render::align_lines_refs(&mut all_lines);
 
     let mut items: Vec<ListItem> = Vec::new();
 
-    for (i, scheme) in schemes.iter().enumerate() {
-        let style = item_style(i, selection);
+    for (i, (scheme, line)) in schemes.iter().zip(render_lines.iter()).enumerate() {
+        let preview_spans = render::render_spans(line);
+
         let cursor = if i == selection { "> " } else { "  " };
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{} - {}", cursor, scheme.name, scheme.description),
-            style,
-        ))));
+        let cursor_style = item_style(i, selection);
+        let padded_name = format!("{:<width$} ", scheme.name, width = max_name_len);
+
+        let mut spans = vec![
+            Span::styled(cursor.to_string(), cursor_style),
+            Span::styled(padded_name, Style::default().fg(Color::DarkGray)),
+        ];
+        spans.extend(preview_spans);
+
+        items.push(ListItem::new(Line::from(spans)));
     }
 
     if !user_themes.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
-            Style::default().fg(Color::DarkGray),
-        ))));
+        if !schemes.is_empty() {
+            items.push(ListItem::new(Line::from(Span::styled(
+                "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
+                Style::default().fg(Color::DarkGray),
+            ))));
+        }
     }
 
-    for (i, (name, _)) in user_themes.iter().enumerate() {
+    for (i, ((name, _), line)) in user_themes.iter().zip(user_render_lines.iter()).enumerate() {
+        let preview_spans = render::render_spans(line);
         let idx = schemes.len() + i;
-        let style = item_style(idx, selection);
         let cursor = if idx == selection { "> " } else { "  " };
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{}", cursor, name),
-            style,
-        ))));
+        let cursor_style = item_style(idx, selection);
+        let padded_name = format!("{:<width$} ", name, width = max_name_len);
+
+        let mut spans = vec![
+            Span::styled(cursor.to_string(), cursor_style),
+            Span::styled(padded_name, Style::default().fg(Color::DarkGray)),
+        ];
+        spans.extend(preview_spans);
+
+        items.push(ListItem::new(Line::from(spans)));
     }
+
+    // Footer note
+    let note_style = Style::default().fg(Color::DarkGray);
+    items.push(ListItem::new(Line::from(Span::styled(
+        "  * Only colors will be imported.",
+        note_style,
+    ))));
 
     let height = (items.len() as u16 + 2).min(area.height.saturating_sub(4));
-    let popup = centered_rect(50, height, area);
+    let popup = centered_rect(70, height, area);
     f.render_widget(Clear, popup);
 
     let block = Block::default()
@@ -55,100 +128,123 @@ pub fn render_colors(f: &mut Frame, area: Rect, selection: usize) {
     f.render_widget(list, popup);
 }
 
-pub fn render_icons(f: &mut Frame, area: Rect, selection: usize) {
-    let icon_sets = crate::presets::icon_sets::all();
+pub fn render_icons(f: &mut Frame, area: Rect, selection: usize, theme: &UserTheme) {
     let user_themes = manager::list_themes().unwrap_or_default();
+    let user_theme_data = load_user_theme_data(&user_themes);
+    let icon_sets = filter_icon_sets(&user_theme_data);
+    let texts = render::demo_texts_compact();
 
-    // Compute max name display width for alignment
-    let max_name_width = icon_sets
+    // Pad names to max width (all ASCII, so len() == display width)
+    let max_name_len = icon_sets
         .iter()
-        .map(|s| UnicodeWidthStr::width(s.name))
-        .chain(user_themes.iter().map(|(n, _)| UnicodeWidthStr::width(n.as_str())))
+        .map(|s| s.name.len())
+        .chain(user_themes.iter().map(|(n, _)| n.len()))
         .max()
         .unwrap_or(0);
 
-    // Collect per-set component icons and separator (plain mode)
-    let icon_rows: Vec<(Vec<&str>, &str)> = icon_sets
+    // Build render lines for presets
+    let mut render_lines: Vec<render::RenderLine> = icon_sets
         .iter()
         .map(|set| {
-            let icons: Vec<&str> = set
-                .icons_iter()
-                .filter(|(id, _)| *id != ComponentId::Separator)
-                .map(|(_, ic)| ic.plain)
-                .collect();
-            let sep = set
-                .get(ComponentId::Separator)
-                .map(|ic| if ic.plain.is_empty() { ic.nerd_font } else { ic.plain })
-                .unwrap_or(" ");
-            (icons, sep)
+            let mut preview_theme = theme.clone();
+            set.apply_to(&mut preview_theme.components);
+            let mode = if set.is_powerline() {
+                if let Some(pl) = crate::presets::color_schemes::find("Powerline Dark") {
+                    pl.apply_to(&mut preview_theme.components);
+                }
+                StyleMode::Powerline
+            } else {
+                preview_theme.style.mode
+            };
+            render::build_render_line(&preview_theme.components, mode, &texts)
         })
         .collect();
 
-    // Per-icon-column max display width
-    let num_cols = icon_rows.iter().map(|(r, _)| r.len()).max().unwrap_or(0);
-    let col_widths: Vec<usize> = (0..num_cols)
-        .map(|col| {
-            icon_rows
-                .iter()
-                .filter_map(|(row, _)| row.get(col))
-                .map(|icon| UnicodeWidthStr::width(*icon))
-                .max()
-                .unwrap_or(1)
-        })
-        .collect();
-
-    // Max separator display width across all sets
-    let max_sep_width = icon_rows
+    // Build render lines for user themes (apply their icons to current theme's colors)
+    let mut user_render_lines: Vec<render::RenderLine> = user_theme_data
         .iter()
-        .map(|(_, sep)| UnicodeWidthStr::width(*sep).max(1))
-        .max()
-        .unwrap_or(1);
+        .map(|ut| {
+            let mut preview_theme = theme.clone();
+            for src in &ut.components {
+                if let Some(dest) = preview_theme.components.iter_mut().find(|c| c.id == src.id) {
+                    dest.icon = src.icon.clone();
+                }
+            }
+            let mode = if ut.style.mode == StyleMode::Powerline {
+                if let Some(pl) = crate::presets::color_schemes::find("Powerline Dark") {
+                    pl.apply_to(&mut preview_theme.components);
+                }
+                StyleMode::Powerline
+            } else {
+                preview_theme.style.mode
+            };
+            render::build_render_line(&preview_theme.components, mode, &texts)
+        })
+        .collect();
+
+    // Align all lines together
+    let mut all_lines: Vec<&mut render::RenderLine> = render_lines
+        .iter_mut()
+        .chain(user_render_lines.iter_mut())
+        .collect();
+    render::align_lines_refs(&mut all_lines);
 
     let mut items: Vec<ListItem> = Vec::new();
 
-    for (i, (set, (icons, sep))) in icon_sets.iter().zip(icon_rows.iter()).enumerate() {
-        let style = item_style(i, selection);
+    for (i, (set, line)) in icon_sets.iter().zip(render_lines.iter()).enumerate() {
+        let preview_spans = render::render_spans(line);
+
         let cursor = if i == selection { "> " } else { "  " };
-        let name_pad = max_name_width - UnicodeWidthStr::width(set.name);
-        let mut line = format!("{}{}{} ", cursor, set.name, " ".repeat(name_pad));
-        for (col, icon) in icons.iter().enumerate() {
-            if col > 0 {
-                let sep_w = UnicodeWidthStr::width(*sep).max(1);
-                let sep_pad = max_sep_width - sep_w;
-                line.push_str(sep);
-                line.push_str(&" ".repeat(sep_pad));
-            }
-            let w = UnicodeWidthStr::width(*icon);
-            let pad = col_widths.get(col).unwrap_or(&1) - w;
-            line.push_str(icon);
-            line.push_str(&" ".repeat(pad));
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            line.trim_end().to_string(),
-            style,
-        ))));
+        let cursor_style = item_style(i, selection);
+        let padded_name = format!("{:<width$} ", set.name, width = max_name_len);
+
+        let mut spans = vec![
+            Span::styled(cursor.to_string(), cursor_style),
+            Span::styled(padded_name, Style::default().fg(Color::DarkGray)),
+        ];
+        spans.extend(preview_spans);
+
+        items.push(ListItem::new(Line::from(spans)));
     }
 
     if !user_themes.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
-            Style::default().fg(Color::DarkGray),
-        ))));
+        if !icon_sets.is_empty() {
+            items.push(ListItem::new(Line::from(Span::styled(
+                "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
+                Style::default().fg(Color::DarkGray),
+            ))));
+        }
     }
 
-    for (i, (name, _)) in user_themes.iter().enumerate() {
+    for (i, ((name, _), line)) in user_themes.iter().zip(user_render_lines.iter()).enumerate() {
+        let preview_spans = render::render_spans(line);
         let idx = icon_sets.len() + i;
-        let style = item_style(idx, selection);
         let cursor = if idx == selection { "> " } else { "  " };
-        let name_pad = max_name_width - UnicodeWidthStr::width(name.as_str());
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{}{} (theme)", cursor, name, " ".repeat(name_pad)),
-            style,
-        ))));
+        let cursor_style = item_style(idx, selection);
+        let padded_name = format!("{:<width$} ", name, width = max_name_len);
+
+        let mut spans = vec![
+            Span::styled(cursor.to_string(), cursor_style),
+            Span::styled(padded_name, Style::default().fg(Color::DarkGray)),
+        ];
+        spans.extend(preview_spans);
+
+        items.push(ListItem::new(Line::from(spans)));
     }
+
+    // Footer note
+    let note_style = Style::default().fg(Color::DarkGray);
+    items.push(ListItem::new(Line::from(Span::styled(
+        "  * Colors are just a preview.",
+        note_style,
+    ))));
+    items.push(ListItem::new(Line::from(Span::styled(
+        "    Only icons will be imported.",
+        note_style,
+    ))));
 
     let height = (items.len() as u16 + 2).min(area.height.saturating_sub(4));
-    let popup = centered_rect(50, height, area);
+    let popup = centered_rect(70, height, area);
     f.render_widget(Clear, popup);
 
     let block = Block::default()
@@ -177,4 +273,33 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let [vert] = vertical.areas(area);
     let [rect] = horizontal.areas(vert);
     rect
+}
+
+fn load_user_theme_data(
+    user_themes: &[(String, std::path::PathBuf)],
+) -> Vec<UserTheme> {
+    user_themes
+        .iter()
+        .filter_map(|(_, path)| manager::load_theme(path).ok())
+        .collect()
+}
+
+/// Color scheme presets not already supplied by any user theme.
+pub fn filter_color_schemes(
+    user_theme_data: &[UserTheme],
+) -> Vec<crate::presets::color_schemes::ColorScheme> {
+    crate::presets::color_schemes::all()
+        .into_iter()
+        .filter(|s| !user_theme_data.iter().any(|t| s.is_supplied_by(&t.components)))
+        .collect()
+}
+
+/// Icon set presets not already supplied by any user theme.
+pub fn filter_icon_sets(
+    user_theme_data: &[UserTheme],
+) -> Vec<crate::presets::icon_sets::IconSet> {
+    crate::presets::icon_sets::all()
+        .into_iter()
+        .filter(|s| !user_theme_data.iter().any(|t| s.is_supplied_by(&t.components)))
+        .collect()
 }

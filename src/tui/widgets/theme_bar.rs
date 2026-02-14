@@ -6,6 +6,7 @@ use ratatui::{
     Frame,
 };
 use std::path::PathBuf;
+use unicode_width::UnicodeWidthStr;
 
 pub fn render(
     f: &mut Frame,
@@ -14,22 +15,89 @@ pub fn render(
     current_index: usize,
     active_name: Option<&str>,
 ) {
-    let mut spans: Vec<Span> = Vec::new();
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(" Themes ");
 
-    spans.push(Span::styled(" < ", Style::default().fg(Color::DarkGray)));
+    // Available width inside the border (minus 2 for border chars)
+    let inner_width = area.width.saturating_sub(2) as usize;
 
-    for (i, (name, _)) in themes.iter().enumerate() {
-        if i > 0 {
-            spans.push(Span::styled("  \u{2502}  ", Style::default().fg(Color::DarkGray)));
+    // Build entries with their display widths
+    let sep = "  \u{2502}  "; // " │ "
+    let sep_w = UnicodeWidthStr::width(sep);
+    let arrow_left = " < ";
+    let arrow_right = " > ";
+    let arrow_w = UnicodeWidthStr::width(arrow_left);
+
+    let entries: Vec<(String, bool)> = themes
+        .iter()
+        .map(|(name, _)| {
+            let is_active = active_name == Some(name.as_str());
+            let label = if is_active {
+                format!("{}*", name)
+            } else {
+                name.clone()
+            };
+            (label, is_active)
+        })
+        .collect();
+
+    // Find a window of entries centered on current_index that fits
+    let mut start = current_index;
+    let mut end = current_index + 1;
+
+    // Width of just the selected entry + arrows
+    let entry_width = |i: usize| UnicodeWidthStr::width(entries[i].0.as_str());
+
+    let mut total_w = arrow_w * 2 + entry_width(current_index);
+
+    // Expand window outward, alternating left and right
+    loop {
+        let mut grew = false;
+
+        // Try expanding left
+        if start > 0 {
+            let candidate_w = sep_w + entry_width(start - 1);
+            if total_w + candidate_w <= inner_width {
+                start -= 1;
+                total_w += candidate_w;
+                grew = true;
+            }
         }
 
-        let is_active = active_name == Some(name.as_str());
-        let label = if is_active {
-            format!("{}*", name)
-        } else {
-            name.clone()
-        };
+        // Try expanding right
+        if end < entries.len() {
+            let candidate_w = sep_w + entry_width(end);
+            if total_w + candidate_w <= inner_width {
+                total_w += candidate_w;
+                end += 1;
+                grew = true;
+            }
+        }
 
+        if !grew {
+            break;
+        }
+    }
+
+    // Build spans
+    let mut spans: Vec<Span> = Vec::new();
+
+    let left_arrow_style = if start > 0 {
+        Style::default().fg(Color::White)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    spans.push(Span::styled(arrow_left, left_arrow_style));
+
+    for i in start..end {
+        if i > start {
+            spans.push(Span::styled(sep, Style::default().fg(Color::DarkGray)));
+        }
+
+        let (ref label, is_active) = entries[i];
         let style = if i == current_index {
             Style::default()
                 .fg(Color::Green)
@@ -40,16 +108,15 @@ pub fn render(
             Style::default().fg(Color::DarkGray)
         };
 
-        spans.push(Span::styled(label, style));
+        spans.push(Span::styled(label.clone(), style));
     }
 
-    spans.push(Span::styled(" > ", Style::default().fg(Color::DarkGray)));
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(Color::DarkGray))
-        .title(" Themes ");
+    let right_arrow_style = if end < entries.len() {
+        Style::default().fg(Color::White)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    spans.push(Span::styled(arrow_right, right_arrow_style));
 
     let paragraph = Paragraph::new(Line::from(spans)).block(block);
     f.render_widget(paragraph, area);

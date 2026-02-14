@@ -1,5 +1,6 @@
 use crate::config::theme::UserTheme;
 use crate::config::types::AnsiColor;
+use crate::core::render;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -56,24 +57,21 @@ impl EditorWidget {
             None => return,
         };
 
-        let fields: Vec<(&str, String)> = vec![
-            ("Enabled", if comp.enabled { "Yes" } else { "No" }.into()),
-            ("Style Mode", theme.style.mode.display_name().into()),
-            ("Plain Icon", comp.icon.plain.clone()),
-            ("Nerd Font Icon", comp.icon.nerd_font.clone()),
-            ("Icon Color", format_color(comp.colors.icon.as_ref())),
-            ("Text Color", format_color(comp.colors.text.as_ref())),
-            ("Bg Color", format_color(comp.colors.background.as_ref())),
-            (
-                "Bold",
-                if comp.styles.text_bold { "Yes" } else { "No" }.into(),
-            ),
+        let fields: Vec<(&str, String, Option<Color>)> = vec![
+            ("Enabled", if comp.enabled { "Yes" } else { "No" }.into(), None),
+            ("Style Mode", theme.style.mode.display_name().into(), None),
+            ("Plain Icon", comp.icon.plain.clone(), None),
+            ("Nerd Font Icon", comp.icon.nerd_font.clone(), None),
+            ("Icon Color", format_color(comp.colors.icon.as_ref()), swatch_color(comp.colors.icon.as_ref())),
+            ("Text Color", format_color(comp.colors.text.as_ref()), swatch_color(comp.colors.text.as_ref())),
+            ("Bg Color", format_color(comp.colors.background.as_ref()), swatch_color(comp.colors.background.as_ref())),
+            ("Bold", if comp.styles.text_bold { "Yes" } else { "No" }.into(), None),
         ];
 
         let items: Vec<ListItem> = fields
             .iter()
             .enumerate()
-            .map(|(i, (label, value))| {
+            .map(|(i, (label, value, swatch))| {
                 let field = FieldSelection::from_index(i);
                 let is_selected = field == selected_field && is_focused;
 
@@ -87,11 +85,18 @@ impl EditorWidget {
 
                 let cursor = if is_selected { "> " } else { "  " };
 
-                ListItem::new(Line::from(vec![
+                let mut spans = vec![
                     Span::styled(cursor, style),
                     Span::styled(format!("{}: ", label), style),
                     Span::styled(value.clone(), Style::default().fg(Color::White)),
-                ]))
+                ];
+
+                if let Some(color) = swatch {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("\u{2588}\u{2588}", Style::default().fg(*color)));
+                }
+
+                ListItem::new(Line::from(spans))
             })
             .collect();
 
@@ -118,4 +123,8 @@ fn format_color(color: Option<&AnsiColor>) -> String {
         Some(c) => c.to_string(),
         None => "\u{2014}".into(), // —
     }
+}
+
+fn swatch_color(color: Option<&AnsiColor>) -> Option<Color> {
+    color.map(render::ansi_to_ratatui_color)
 }

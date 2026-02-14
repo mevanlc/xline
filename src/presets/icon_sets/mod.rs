@@ -34,34 +34,27 @@ impl IconSet {
         }
     }
 
-    /// Iterate over all (ComponentId, ComponentIcons) entries.
-    pub fn icons_iter(&self) -> impl Iterator<Item = &(ComponentId, ComponentIcons)> {
-        self.entries.iter()
-    }
-
     /// Get icons for a specific component.
     pub fn get(&self, id: ComponentId) -> Option<&ComponentIcons> {
         self.entries.iter().find(|(cid, _)| *cid == id).map(|(_, i)| i)
     }
 
-    /// Get a preview of all icons (plain mode) as a string, excluding separator.
-    pub fn preview_plain(&self) -> String {
-        self.entries
-            .iter()
-            .filter(|(id, _)| *id != ComponentId::Separator)
-            .map(|(_, icons)| icons.plain)
-            .collect::<Vec<_>>()
-            .join(" ")
+    /// Whether any single theme's components supply all of this set's icons.
+    pub fn is_supplied_by(&self, theme_components: &[crate::config::types::ComponentConfig]) -> bool {
+        self.entries.iter().all(|(id, icons)| {
+            theme_components
+                .iter()
+                .find(|c| c.id == *id)
+                .is_some_and(|comp| {
+                    comp.icon.plain == icons.plain && comp.icon.nerd_font == icons.nerd_font
+                })
+        })
     }
 
-    /// Get a preview of all icons (nerd font mode) as a string, excluding separator.
-    pub fn preview_nerd_font(&self) -> String {
-        self.entries
-            .iter()
-            .filter(|(id, _)| *id != ComponentId::Separator)
-            .map(|(_, icons)| icons.nerd_font)
-            .collect::<Vec<_>>()
-            .join(" ")
+    /// Whether this icon set uses powerline arrows as separators.
+    pub fn is_powerline(&self) -> bool {
+        self.get(ComponentId::Separator)
+            .map_or(false, |ic| ic.nerd_font.contains('\u{e0b0}'))
     }
 
     /// Apply this icon set to a theme's components (mutates in place).

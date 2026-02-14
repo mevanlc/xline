@@ -36,6 +36,7 @@ pub struct App {
     pub selected_field: FieldSelection,
     pub should_quit: bool,
     pub status_message: Option<String>,
+    pub show_banner: bool,
 
     // Popup state
     pub file_menu_open: bool,
@@ -146,6 +147,7 @@ impl App {
             selected_field: FieldSelection::Enabled,
             should_quit: false,
             status_message: None,
+            show_banner: true,
             file_menu_open: false,
             file_menu_selection: 0,
             import_colors_open: false,
@@ -278,13 +280,16 @@ impl App {
             KeyCode::Char(' ') => self.toggle_current(),
             KeyCode::Left => self.switch_theme(-1),
             KeyCode::Right => self.switch_theme(1),
-            KeyCode::Char('i') | KeyCode::Char('I') => {
+            KeyCode::Char('c') | KeyCode::Char('C') => {
                 self.import_colors_open = true;
                 self.import_colors_selection = 0;
             }
-            KeyCode::Char('k') | KeyCode::Char('K') => {
+            KeyCode::Char('i') | KeyCode::Char('I') => {
                 self.import_icons_open = true;
                 self.import_icons_selection = 0;
+            }
+            KeyCode::Char('b') | KeyCode::Char('B') => {
+                self.show_banner = !self.show_banner;
             }
             _ => {}
         }
@@ -669,8 +674,12 @@ impl App {
             return;
         }
 
-        let schemes = crate::presets::color_schemes::all();
         let user_themes = manager::list_themes().unwrap_or_default();
+        let user_theme_data: Vec<_> = user_themes
+            .iter()
+            .filter_map(|(_, path)| manager::load_theme(path).ok())
+            .collect();
+        let schemes = super::widgets::import_menu::filter_color_schemes(&user_theme_data);
         let total = schemes.len() + user_themes.len();
 
         match code {
@@ -727,8 +736,12 @@ impl App {
             return;
         }
 
-        let icon_sets = crate::presets::icon_sets::all();
         let user_themes = manager::list_themes().unwrap_or_default();
+        let user_theme_data: Vec<_> = user_themes
+            .iter()
+            .filter_map(|(_, path)| manager::load_theme(path).ok())
+            .collect();
+        let icon_sets = super::widgets::import_menu::filter_icon_sets(&user_theme_data);
         let total = icon_sets.len() + user_themes.len();
 
         match code {
@@ -1024,18 +1037,29 @@ impl App {
     pub fn ui(&self, f: &mut Frame) {
         use ratatui::layout::{Constraint, Direction, Layout};
 
+        let preview_height = if self.show_banner {
+            super::widgets::banner::HEIGHT
+        } else {
+            3
+        };
+
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // Preview
-                Constraint::Min(10),  // Main content
-                Constraint::Length(3), // Themes bar
-                Constraint::Length(4), // Keymap + Status
+                Constraint::Length(preview_height), // Preview / Banner
+                Constraint::Length(1),              // Spacer
+                Constraint::Min(10),               // Main content
+                Constraint::Length(3),              // Themes bar
+                Constraint::Length(4),              // Keymap + Status
             ])
             .split(f.area());
 
         // Preview
-        PreviewWidget::render(f, layout[0], &self.theme);
+        if self.show_banner {
+            super::widgets::banner::render(f, layout[0], &self.theme);
+        } else {
+            PreviewWidget::render(f, layout[0], &self.theme);
+        }
 
         // Main content: two columns
         let content = Layout::default()
@@ -1044,7 +1068,7 @@ impl App {
                 Constraint::Length(24),
                 Constraint::Min(30),
             ])
-            .split(layout[1]);
+            .split(layout[2]);
 
         ComponentListWidget::render(
             f,
@@ -1066,7 +1090,7 @@ impl App {
         // Themes bar
         super::widgets::theme_bar::render(
             f,
-            layout[2],
+            layout[3],
             &self.theme_list,
             self.theme_list_index,
             self.active_theme_name.as_deref(),
@@ -1075,7 +1099,7 @@ impl App {
         // Keymap + Status
         HelpBarWidget::render(
             f,
-            layout[3],
+            layout[4],
             self.status_message.as_deref(),
         );
 
@@ -1084,10 +1108,10 @@ impl App {
             super::widgets::file_menu::render(f, f.area(), self.file_menu_selection);
         }
         if self.import_colors_open {
-            super::widgets::import_menu::render_colors(f, f.area(), self.import_colors_selection);
+            super::widgets::import_menu::render_colors(f, f.area(), self.import_colors_selection, &self.theme);
         }
         if self.import_icons_open {
-            super::widgets::import_menu::render_icons(f, f.area(), self.import_icons_selection);
+            super::widgets::import_menu::render_icons(f, f.area(), self.import_icons_selection, &self.theme);
         }
         if self.open_menu_open {
             super::widgets::open_menu::render(

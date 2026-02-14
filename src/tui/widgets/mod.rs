@@ -1,3 +1,4 @@
+pub mod banner;
 pub mod color_picker;
 pub mod component_list;
 pub mod confirm_dialog;

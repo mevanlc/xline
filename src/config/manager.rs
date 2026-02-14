@@ -10,17 +10,68 @@ pub fn themes_dir() -> PathBuf {
 }
 
 /// Ensure the themes directory exists and contains at least one theme.
-/// If no themes exist, creates Default.toml with active=true.
+/// If no themes exist, creates all starter themes.
 pub fn bootstrap() -> std::io::Result<()> {
     let dir = themes_dir();
     fs::create_dir_all(&dir)?;
 
     let themes = list_theme_files(&dir)?;
     if themes.is_empty() {
-        let default = UserTheme::default_theme();
-        save_theme(&dir.join("Default.toml"), &default)?;
+        write_default_themes(&dir, false)?;
     }
     Ok(())
+}
+
+/// Write all starter themes to the given directory.
+/// If `force` is true, overwrite existing files. Otherwise skip them.
+/// Returns the number of themes written.
+pub fn write_default_themes(dir: &Path, force: bool) -> std::io::Result<usize> {
+    use crate::config::types::StyleMode;
+    use crate::presets::{color_schemes, icon_sets};
+
+    struct Spec {
+        name: &'static str,
+        colors: &'static str,
+        icons: &'static str,
+        mode: StyleMode,
+        active: bool,
+    }
+
+    let specs = [
+        Spec { name: "Default",         colors: "Default",         icons: "Emoji",     mode: StyleMode::Plain,     active: true },
+        Spec { name: "Cometix",         colors: "Cometix",         icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
+        Spec { name: "Minimal",         colors: "Minimal",         icons: "Minimal",   mode: StyleMode::Plain,     active: false },
+        Spec { name: "Gruvbox",         colors: "Gruvbox",         icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
+        Spec { name: "Nord",            colors: "Nord",            icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
+        Spec { name: "Powerline Dark",  colors: "Powerline Dark",  icons: "Powerline", mode: StyleMode::Powerline, active: false },
+        Spec { name: "Powerline Light", colors: "Powerline Light", icons: "Powerline", mode: StyleMode::Powerline, active: false },
+        Spec { name: "Rose Pine",       colors: "Rose Pine",       icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
+        Spec { name: "Tokyo Night",     colors: "Tokyo Night",     icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
+    ];
+
+    let mut written = 0;
+    for spec in &specs {
+        let path = dir.join(format!("{}.toml", spec.name));
+        if !force && path.exists() {
+            continue;
+        }
+
+        let mut theme = UserTheme::default_theme();
+        theme.active = spec.active;
+        theme.style.mode = spec.mode;
+
+        if let Some(colors) = color_schemes::find(spec.colors) {
+            colors.apply_to(&mut theme.components);
+        }
+        if let Some(icons) = icon_sets::find(spec.icons) {
+            icons.apply_to(&mut theme.components);
+        }
+
+        save_theme(&path, &theme)?;
+        written += 1;
+    }
+
+    Ok(written)
 }
 
 /// List all .toml theme files in the themes directory.

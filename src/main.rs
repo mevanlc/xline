@@ -1,13 +1,39 @@
 use std::io::{self, IsTerminal, Read};
 
 fn main() {
-    let stdin_is_terminal = io::stdin().is_terminal();
+    let args: Vec<String> = std::env::args().skip(1).collect();
 
-    // Bootstrap: ensure themes dir exists with at least Default.toml
+    // Handle --write-default-themes [--force]
+    if args.iter().any(|a| a == "--write-default-themes") {
+        let force = args.iter().any(|a| a == "--force");
+        let dir = ccxline::config::manager::themes_dir();
+        if let Err(e) = std::fs::create_dir_all(&dir) {
+            eprintln!("ccxline: cannot create themes dir: {}", e);
+            std::process::exit(1);
+        }
+        match ccxline::config::manager::write_default_themes(&dir, force) {
+            Ok(n) => {
+                if n > 0 {
+                    eprintln!("Wrote {} default theme(s) to {}", n, dir.display());
+                } else {
+                    eprintln!("All default themes already exist (use --force to overwrite)");
+                }
+            }
+            Err(e) => {
+                eprintln!("ccxline: error writing themes: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // Bootstrap: ensure themes dir exists with starter themes
     if let Err(e) = ccxline::config::manager::bootstrap() {
         eprintln!("ccxline: bootstrap error: {}", e);
         std::process::exit(1);
     }
+
+    let stdin_is_terminal = io::stdin().is_terminal();
 
     if stdin_is_terminal {
         // No stdin data → launch TUI editor
