@@ -1,5 +1,4 @@
 use crate::config::theme::UserTheme;
-use crate::config::types::ComponentId;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -20,13 +19,6 @@ impl ComponentListWidget {
     ) {
         let mut items: Vec<ListItem> = Vec::new();
         for (i, comp) in theme.components.iter().enumerate() {
-            if comp.id == ComponentId::Separator {
-                items.push(ListItem::new(Line::from(Span::styled(
-                    " \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
-                    Style::default().fg(Color::DarkGray),
-                ))));
-            }
-
             let check = if comp.enabled { "\u{2713}" } else { " " };
             let is_sel = i == selected;
             let cursor = if is_sel { ">" } else { " " };

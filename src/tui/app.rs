@@ -36,7 +36,6 @@ pub struct App {
     pub selected_field: FieldSelection,
     pub should_quit: bool,
     pub status_message: Option<String>,
-    pub show_banner: bool,
 
     // Popup state
     pub file_menu_open: bool,
@@ -147,7 +146,6 @@ impl App {
             selected_field: FieldSelection::Enabled,
             should_quit: false,
             status_message: None,
-            show_banner: true,
             file_menu_open: false,
             file_menu_selection: 0,
             import_colors_open: false,
@@ -287,9 +285,6 @@ impl App {
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 self.import_icons_open = true;
                 self.import_icons_selection = 0;
-            }
-            KeyCode::Char('b') | KeyCode::Char('B') => {
-                self.show_banner = !self.show_banner;
             }
             _ => {}
         }
@@ -1037,17 +1032,24 @@ impl App {
     pub fn ui(&self, f: &mut Frame) {
         use ratatui::layout::{Constraint, Direction, Layout};
 
-        let preview_height = if self.show_banner {
+        let height = f.area().height;
+        let show_banner = height >= 25;
+        let compact = height <= 21;
+
+        let preview_height = if show_banner {
             super::widgets::banner::HEIGHT
+        } else if compact {
+            1
         } else {
             3
         };
+        let spacer_height = if compact { 0 } else { 1 };
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(preview_height), // Preview / Banner
-                Constraint::Length(1),              // Spacer
+                Constraint::Length(spacer_height),  // Spacer
                 Constraint::Min(10),               // Main content
                 Constraint::Length(3),              // Themes bar
                 Constraint::Length(4),              // Keymap + Status
@@ -1055,10 +1057,10 @@ impl App {
             .split(f.area());
 
         // Preview
-        if self.show_banner {
+        if show_banner {
             super::widgets::banner::render(f, layout[0], &self.theme);
         } else {
-            PreviewWidget::render(f, layout[0], &self.theme);
+            PreviewWidget::render(f, layout[0], &self.theme, compact);
         }
 
         // Main content: two columns
