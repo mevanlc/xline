@@ -61,12 +61,14 @@ impl EditorWidget {
             ("Enabled", if comp.enabled { "Yes" } else { "No" }.into(), None),
             ("Style Mode", theme.style.mode.display_name().into(), None),
             ("Plain Icon", comp.icon.plain.clone(), None),
-            ("Nerd Font Icon", comp.icon.nerd_font.clone(), None),
+            ("Nerd Icon", comp.icon.nerd_font.clone(), None),
             ("Icon Color", format_color(comp.colors.icon.as_ref()), swatch_color(comp.colors.icon.as_ref())),
             ("Text Color", format_color(comp.colors.text.as_ref()), swatch_color(comp.colors.text.as_ref())),
             ("Bg Color", format_color(comp.colors.background.as_ref()), swatch_color(comp.colors.background.as_ref())),
             ("Bold", if comp.styles.text_bold { "Yes" } else { "No" }.into(), None),
         ];
+
+        let label_col_width = fields.iter().map(|(l, _, _)| l.len()).max().unwrap_or(0) + 1;
 
         let items: Vec<ListItem> = fields
             .iter()
@@ -87,7 +89,10 @@ impl EditorWidget {
 
                 let mut spans = vec![
                     Span::styled(cursor, style),
-                    Span::styled(format!("{}: ", label), style),
+                    Span::styled(
+                        format!("{:<width$} ", format!("{}:", label), width = label_col_width),
+                        style,
+                    ),
                     Span::styled(value.clone(), Style::default().fg(Color::White)),
                 ];
 
