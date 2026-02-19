@@ -1050,7 +1050,7 @@ impl App {
             .constraints([
                 Constraint::Length(preview_height), // Preview / Banner
                 Constraint::Length(spacer_height),  // Spacer
-                Constraint::Min(10),               // Main content
+                Constraint::Min(3),                // Main content (scrollable)
                 Constraint::Length(3),              // Themes bar
                 Constraint::Length(4),              // Keymap + Status
             ])

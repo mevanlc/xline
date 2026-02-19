@@ -70,7 +70,7 @@ impl EditorWidget {
 
         let label_col_width = fields.iter().map(|(l, _, _)| l.len()).max().unwrap_or(0) + 1;
 
-        let items: Vec<ListItem> = fields
+        let all_items: Vec<ListItem> = fields
             .iter()
             .enumerate()
             .map(|(i, (label, value, swatch))| {
@@ -104,6 +104,40 @@ impl EditorWidget {
                 ListItem::new(Line::from(spans))
             })
             .collect();
+
+        let total = all_items.len();
+        let selected_idx = selected_field as usize;
+        let inner_height = area.height.saturating_sub(2) as usize; // borders
+
+        let items = if total <= inner_height {
+            all_items
+        } else {
+            // Both arrows always shown; visible slots = inner_height - 2
+            let visible = inner_height.saturating_sub(2);
+            let half = visible / 2;
+            let raw_offset = selected_idx.saturating_sub(half);
+            let max_offset = total.saturating_sub(visible);
+            let offset = raw_offset.min(max_offset);
+
+            let has_above = offset > 0;
+            let has_below = offset + visible < total;
+            let arrow_active = Style::default().fg(Color::DarkGray);
+            let arrow_inactive = Style::default().fg(Color::Rgb(40, 40, 40));
+
+            let mut visible_items: Vec<ListItem> = Vec::new();
+            visible_items.push(ListItem::new(Line::from(Span::styled(
+                " \u{2191}",
+                if has_above { arrow_active } else { arrow_inactive },
+            ))));
+            visible_items.extend(
+                all_items.into_iter().skip(offset).take(visible),
+            );
+            visible_items.push(ListItem::new(Line::from(Span::styled(
+                " \u{2193}",
+                if has_below { arrow_active } else { arrow_inactive },
+            ))));
+            visible_items
+        };
 
         let border_style = if is_focused {
             Style::default().fg(Color::Blue)
