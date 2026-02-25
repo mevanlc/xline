@@ -23,8 +23,8 @@ impl HelpBarWidget {
 
         // Keymap (left)
         let grid = key_hints::render_grid(&[
-            &[("Tab", "Panel"), ("\u{2191}\u{2193}", "Nav"),    ("\u{23ce}", "Edit"),    ("C", "Colors")],
-            &[("^S", "Menu"),   ("\u{2190}\u{2192}", "Theme"),  ("Space", "Toggle"), ("I", "Icons")],
+            &[("\u{2190}\u{2192}", "Panel"), ("\u{2191}\u{2193}", "Nav"),  ("\u{23ce}", "Edit/Toggle"), ("C", "Colors")],
+            &[("Q/E", "Theme"),           ("^S", "Menu"),               ("S+\u{2191}\u{2193}", "Reorder"), ("I", "Icons")],
         ]);
 
         let keymap_block = Block::default()
