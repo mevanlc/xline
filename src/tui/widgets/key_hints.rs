@@ -3,9 +3,14 @@ use ratatui::{
     text::{Line, Span},
 };
 
-/// Style applied to the `[Key]` bracket portion.
+/// Style applied to the `[` `]` brackets around keys.
+fn bracket_style() -> Style {
+    Style::default().fg(Color::Indexed(236))
+}
+
+/// Style applied to the key text inside brackets.
 fn key_style() -> Style {
-    Style::default().fg(Color::DarkGray)
+    Style::default().fg(Color::Indexed(245))
 }
 
 /// Style applied to the label portion.
@@ -49,13 +54,14 @@ pub fn render_grid(rows: &[&[(&str, &str)]]) -> Vec<Line<'static>> {
                 }
 
                 // Right-align key: pad left
-                let key_str = format!("[{}]", key);
-                let key_w = key_str.chars().count();
+                let key_w = key.chars().count() + 2; // +2 for []
                 let pad = key_widths[col].saturating_sub(key_w);
                 if pad > 0 {
                     spans.push(Span::raw(" ".repeat(pad)));
                 }
-                spans.push(Span::styled(key_str, key_style()));
+                spans.push(Span::styled("[", bracket_style()));
+                spans.push(Span::styled(key.to_string(), key_style()));
+                spans.push(Span::styled("]", bracket_style()));
 
                 // 1 space gap
                 spans.push(Span::raw(" ".to_string()));

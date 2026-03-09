@@ -94,7 +94,7 @@ pub fn render(
 
     for i in start..end {
         if i > start {
-            spans.push(Span::styled(sep, Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(sep, Style::default().fg(Color::Indexed(236))));
         }
 
         let (ref label, is_active) = entries[i];
@@ -105,7 +105,7 @@ pub fn render(
         } else if is_active {
             Style::default().fg(Color::White)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(Color::Indexed(245))
         };
 
         spans.push(Span::styled(label.clone(), style));

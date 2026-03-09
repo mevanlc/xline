@@ -304,8 +304,14 @@ impl App {
                 self.selected_panel.set(&Panel::Editor);
             }
             KeyCode::Char(' ') => self.toggle_current(),
-            KeyCode::Left => self.switch_theme(-1),
-            KeyCode::Right => self.switch_theme(1),
+            KeyCode::Left | KeyCode::Right => {
+                self.selected_panel = match self.selected_panel {
+                    Panel::ComponentList => Panel::Editor,
+                    Panel::Editor => Panel::ComponentList,
+                };
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') => self.switch_theme(-1),
+            KeyCode::Char('e') | KeyCode::Char('E') => self.switch_theme(1),
             KeyCode::Char('c') | KeyCode::Char('C') => {
                 self.import_colors_open = true;
                 self.import_colors_selection = 0;

@@ -44,6 +44,20 @@ impl ComponentId {
         }
     }
 
+    pub fn description(self) -> &'static str {
+        match self {
+            ComponentId::Model => "Active Claude model name",
+            ComponentId::Directory => "Current working directory",
+            ComponentId::Git => "Branch and working tree status",
+            ComponentId::ContextWindow => "Context window fill percentage",
+            ComponentId::Usage => "API token count for this session",
+            ComponentId::Cost => "Estimated API cost for this session",
+            ComponentId::Session => "Elapsed time in current session",
+            ComponentId::OutputStyle => "Response verbosity mode",
+            ComponentId::Separator => "Divider between left and right sides",
+        }
+    }
+
     pub fn short_name(self) -> &'static str {
         match self {
             ComponentId::Model => "Model",

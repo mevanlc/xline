@@ -58,19 +58,19 @@ impl ComponentListWidget {
 
             let has_above = offset > 0;
             let has_below = offset + visible < total;
-            let arrow_active = Style::default().fg(Color::DarkGray);
-            let arrow_inactive = Style::default().fg(Color::Rgb(40, 40, 40));
+            let arrow_active = Style::default().fg(Color::Gray);
+            let arrow_inactive = Style::default().fg(Color::DarkGray);
 
             let mut visible_items: Vec<ListItem> = Vec::new();
             visible_items.push(ListItem::new(Line::from(Span::styled(
-                " \u{2191}",
+                " \u{2bac}",
                 if has_above { arrow_active } else { arrow_inactive },
             ))));
             visible_items.extend(
                 all_items.into_iter().skip(offset).take(visible),
             );
             visible_items.push(ListItem::new(Line::from(Span::styled(
-                " \u{2193}",
+                " \u{2bae}",
                 if has_below { arrow_active } else { arrow_inactive },
             ))));
             visible_items
