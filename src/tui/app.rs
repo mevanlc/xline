@@ -40,7 +40,7 @@ pub struct App {
 
     // Popup state
     pub file_menu_open: bool,
-    pub file_menu_selection: usize,
+    pub file_menu_selection: RingCursor<FileMenuAction>,
     pub import_colors_open: bool,
     pub import_colors_selection: usize,
     pub import_icons_open: bool,
@@ -71,6 +71,18 @@ pub enum ConfirmAction {
     DeleteTheme,
     ExitWithoutSaving,
     DiscardAndOpen,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileMenuAction {
+    SaveActivateExit,
+    Activate,
+    Save,
+    SaveAs,
+    Open,
+    Rename,
+    Delete,
+    Exit,
 }
 
 #[derive(Debug, Clone)]
@@ -106,6 +118,21 @@ impl Default for ColorPickerState {
             rgb_b: "128".into(),
             rgb_focus: 0,
         }
+    }
+}
+
+impl FileMenuAction {
+    fn all() -> Vec<Self> {
+        vec![
+            Self::SaveActivateExit,
+            Self::Activate,
+            Self::Save,
+            Self::SaveAs,
+            Self::Open,
+            Self::Rename,
+            Self::Delete,
+            Self::Exit,
+        ]
     }
 }
 
@@ -152,7 +179,7 @@ impl App {
             should_quit: false,
             status_message: None,
             file_menu_open: false,
-            file_menu_selection: 0,
+            file_menu_selection: RingCursor::new(FileMenuAction::all()),
             import_colors_open: false,
             import_colors_selection: 0,
             import_icons_open: false,
@@ -242,7 +269,7 @@ impl App {
         match code {
             KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => {
                 self.file_menu_open = true;
-                self.file_menu_selection = 0;
+                self.file_menu_selection.set(&FileMenuAction::SaveActivateExit);
             }
             KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => {
                 if self.is_dirty {
@@ -255,7 +282,7 @@ impl App {
             }
             KeyCode::Esc => {
                 self.file_menu_open = true;
-                self.file_menu_selection = 0;
+                self.file_menu_selection.set(&FileMenuAction::SaveActivateExit);
             }
             KeyCode::Tab => { self.selected_panel.move_next(); }
             KeyCode::BackTab => { self.selected_panel.move_prev(); }
@@ -294,9 +321,11 @@ impl App {
     fn move_selection(&mut self, delta: i32) {
         match *self.selected_panel.current() {
             Panel::ComponentList => {
-                let max = self.component_count().saturating_sub(1) as i32;
-                self.selected_component =
-                    (self.selected_component as i32 + delta).clamp(0, max) as usize;
+                let count = self.component_count();
+                if count > 0 {
+                    self.selected_component =
+                        (self.selected_component as i32 + delta).rem_euclid(count as i32) as usize;
+                }
             }
             Panel::Editor => {
                 let field_count = FieldSelection::count() as i32;
@@ -414,27 +443,22 @@ impl App {
         }
         match code {
             KeyCode::Up => {
-                if self.file_menu_selection > 0 {
-                    self.file_menu_selection -= 1;
-                }
+                self.file_menu_selection.move_prev();
             }
             KeyCode::Down => {
-                if self.file_menu_selection + 1 < FILE_MENU_ITEMS.len() {
-                    self.file_menu_selection += 1;
-                }
+                self.file_menu_selection.move_next();
             }
             KeyCode::Enter => {
                 self.file_menu_open = false;
-                match self.file_menu_selection {
-                    0 => self.action_save_activate_exit(),
-                    1 => self.action_activate(),
-                    2 => self.action_save(),
-                    3 => self.action_save_as(),
-                    4 => self.action_open(),
-                    5 => self.action_rename(),
-                    6 => self.action_delete(),
-                    7 => self.action_exit(),
-                    _ => {}
+                match *self.file_menu_selection.current() {
+                    FileMenuAction::SaveActivateExit => self.action_save_activate_exit(),
+                    FileMenuAction::Activate => self.action_activate(),
+                    FileMenuAction::Save => self.action_save(),
+                    FileMenuAction::SaveAs => self.action_save_as(),
+                    FileMenuAction::Open => self.action_open(),
+                    FileMenuAction::Rename => self.action_rename(),
+                    FileMenuAction::Delete => self.action_delete(),
+                    FileMenuAction::Exit => self.action_exit(),
                 }
             }
             _ => {}
@@ -1106,7 +1130,7 @@ impl App {
 
         // Popups (rendered on top)
         if self.file_menu_open {
-            super::widgets::file_menu::render(f, f.area(), self.file_menu_selection);
+            super::widgets::file_menu::render(f, f.area(), self.file_menu_selection.index());
         }
         if self.import_colors_open {
             super::widgets::import_menu::render_colors(f, f.area(), self.import_colors_selection, &self.theme);
