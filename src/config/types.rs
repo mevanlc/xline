@@ -117,9 +117,19 @@ impl Default for StyleConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerModelIcons {
+    pub enabled: bool,
+    pub opus: String,
+    pub sonnet: String,
+    pub haiku: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IconConfig {
     pub plain: String,
     pub nerd_font: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub per_model: Option<PerModelIcons>,
 }
 
 impl Default for IconConfig {
@@ -127,6 +137,7 @@ impl Default for IconConfig {
         Self {
             plain: String::new(),
             nerd_font: String::new(),
+            per_model: None,
         }
     }
 }

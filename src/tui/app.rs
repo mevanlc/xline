@@ -63,6 +63,9 @@ pub enum NameInputPurpose {
     Rename,
     EditPlainIcon,
     EditNerdFontIcon,
+    EditOpusIcon,
+    EditSonnetIcon,
+    EditHaikuIcon,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -302,12 +305,25 @@ impl App {
                 let max = self.component_count().saturating_sub(1) as i32;
                 self.selected_component =
                     (self.selected_component as i32 + delta).clamp(0, max) as usize;
+                // Clamp field selection to valid fields for the new component
+                if let Some(comp) = self.theme.components.get(self.selected_component) {
+                    let fields = FieldSelection::fields_for(comp);
+                    if !fields.contains(&self.selected_field) {
+                        self.selected_field = FieldSelection::Enabled;
+                    }
+                }
             }
             Panel::Editor => {
-                let field_count = FieldSelection::count() as i32;
-                let current = self.selected_field as i32;
-                let new_val = (current + delta).clamp(0, field_count - 1) as usize;
-                self.selected_field = FieldSelection::from_index(new_val);
+                if let Some(comp) = self.theme.components.get(self.selected_component) {
+                    let fields = FieldSelection::fields_for(comp);
+                    let current = fields
+                        .iter()
+                        .position(|f| *f == self.selected_field)
+                        .unwrap_or(0) as i32;
+                    let new_idx =
+                        (current + delta).clamp(0, fields.len() as i32 - 1) as usize;
+                    self.selected_field = fields[new_idx];
+                }
             }
         }
     }
@@ -359,6 +375,48 @@ impl App {
                             self.name_input_open = true;
                             self.name_input_buffer = comp.icon.nerd_font.clone();
                             self.name_input_purpose = NameInputPurpose::EditNerdFontIcon;
+                        }
+                        FieldSelection::PerModelIcons => {
+                            let comp = &mut self.theme.components[self.selected_component];
+                            let pm = comp.icon.per_model.get_or_insert_with(|| {
+                                crate::config::types::PerModelIcons {
+                                    enabled: false,
+                                    opus: "\u{1f419}".into(),   // 🐙
+                                    sonnet: "\u{1f3b6}".into(), // 🎶
+                                    haiku: "\u{1f338}".into(),  // 🌸
+                                }
+                            });
+                            pm.enabled = !pm.enabled;
+                            self.status_message = Some(format!(
+                                "Per-model icons {}",
+                                if pm.enabled { "enabled" } else { "disabled" }
+                            ));
+                            // Clamp selected_field to stay in valid range
+                            let fields = FieldSelection::fields_for(
+                                &self.theme.components[self.selected_component],
+                            );
+                            if !fields.contains(&self.selected_field) {
+                                self.selected_field = FieldSelection::PerModelIcons;
+                            }
+                            self.mark_dirty();
+                        }
+                        FieldSelection::OpusIcon => {
+                            let comp = &self.theme.components[self.selected_component];
+                            self.name_input_open = true;
+                            self.name_input_buffer = comp.icon.per_model.as_ref().map_or(String::new(), |p| p.opus.clone());
+                            self.name_input_purpose = NameInputPurpose::EditOpusIcon;
+                        }
+                        FieldSelection::SonnetIcon => {
+                            let comp = &self.theme.components[self.selected_component];
+                            self.name_input_open = true;
+                            self.name_input_buffer = comp.icon.per_model.as_ref().map_or(String::new(), |p| p.sonnet.clone());
+                            self.name_input_purpose = NameInputPurpose::EditSonnetIcon;
+                        }
+                        FieldSelection::HaikuIcon => {
+                            let comp = &self.theme.components[self.selected_component];
+                            self.name_input_open = true;
+                            self.name_input_buffer = comp.icon.per_model.as_ref().map_or(String::new(), |p| p.haiku.clone());
+                            self.name_input_purpose = NameInputPurpose::EditHaikuIcon;
                         }
                         FieldSelection::IconColor
                         | FieldSelection::TextColor
@@ -556,6 +614,33 @@ impl App {
                             comp.icon.nerd_font = self.name_input_buffer.clone();
                             self.status_message = Some("Nerd Font icon updated".into());
                             self.mark_dirty();
+                        }
+                    }
+                    NameInputPurpose::EditOpusIcon => {
+                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
+                            if let Some(pm) = comp.icon.per_model.as_mut() {
+                                pm.opus = self.name_input_buffer.clone();
+                                self.status_message = Some("Opus icon updated".into());
+                                self.mark_dirty();
+                            }
+                        }
+                    }
+                    NameInputPurpose::EditSonnetIcon => {
+                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
+                            if let Some(pm) = comp.icon.per_model.as_mut() {
+                                pm.sonnet = self.name_input_buffer.clone();
+                                self.status_message = Some("Sonnet icon updated".into());
+                                self.mark_dirty();
+                            }
+                        }
+                    }
+                    NameInputPurpose::EditHaikuIcon => {
+                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
+                            if let Some(pm) = comp.icon.per_model.as_mut() {
+                                pm.haiku = self.name_input_buffer.clone();
+                                self.status_message = Some("Haiku icon updated".into());
+                                self.mark_dirty();
+                            }
                         }
                     }
                     _ => {
@@ -1135,6 +1220,9 @@ impl App {
                 NameInputPurpose::Rename => "Rename",
                 NameInputPurpose::EditPlainIcon => "Plain Icon",
                 NameInputPurpose::EditNerdFontIcon => "Nerd Font Icon",
+                NameInputPurpose::EditOpusIcon => "Opus Icon",
+                NameInputPurpose::EditSonnetIcon => "Sonnet Icon",
+                NameInputPurpose::EditHaikuIcon => "Haiku Icon",
             };
             super::widgets::name_input::render(f, f.area(), title, &self.name_input_buffer);
         }

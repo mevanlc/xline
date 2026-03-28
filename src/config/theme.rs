@@ -30,6 +30,7 @@ impl UserTheme {
                 id: Model,
                 enabled: true,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{1f916}".into(), // 🤖
                     nerd_font: "\u{e26d}".into(),
                 },
@@ -45,6 +46,7 @@ impl UserTheme {
                 id: Directory,
                 enabled: true,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{1f4c1}".into(), // 📁
                     nerd_font: "\u{f024b}".into(),
                 },
@@ -60,6 +62,7 @@ impl UserTheme {
                 id: Git,
                 enabled: true,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{1f33f}".into(), // 🌿
                     nerd_font: "\u{f02a2}".into(),
                 },
@@ -75,6 +78,7 @@ impl UserTheme {
                 id: ContextWindow,
                 enabled: true,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{26a1}".into(), // ⚡
                     nerd_font: "\u{f0e7}".into(),
                 },
@@ -90,6 +94,7 @@ impl UserTheme {
                 id: Usage,
                 enabled: false,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{1f4ca}".into(), // 📊
                     nerd_font: "\u{f080}".into(),
                 },
@@ -105,6 +110,7 @@ impl UserTheme {
                 id: Cost,
                 enabled: false,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{1f4b0}".into(), // 💰
                     nerd_font: "\u{f0155}".into(),
                 },
@@ -120,6 +126,7 @@ impl UserTheme {
                 id: Session,
                 enabled: false,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{23f1}\u{fe0f}".into(), // ⏱️
                     nerd_font: "\u{f64f}".into(),
                 },
@@ -135,6 +142,7 @@ impl UserTheme {
                 id: OutputStyle,
                 enabled: false,
                 icon: IconConfig {
+                    per_model: None,
                     plain: "\u{1f4dd}".into(), // 📝
                     nerd_font: "\u{f0f6}".into(),
                 },
@@ -150,6 +158,7 @@ impl UserTheme {
                 id: Separator,
                 enabled: true,
                 icon: IconConfig {
+                    per_model: None,
                     plain: " | ".into(),
                     nerd_font: " | ".into(),
                 },

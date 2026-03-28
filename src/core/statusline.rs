@@ -51,7 +51,9 @@ pub fn collect_all_components(
         }
 
         let data = match comp_cfg.id {
-            ComponentId::Model => ModelComponent::new().collect(input),
+            ComponentId::Model => ModelComponent::new()
+                .with_per_model(comp_cfg.icon.per_model.clone())
+                .collect(input),
             ComponentId::Directory => DirectoryComponent::new().collect(input),
             ComponentId::Git => {
                 let show_sha = comp_cfg
