@@ -1,6 +1,7 @@
 use crate::config::manager;
 use crate::config::theme::UserTheme;
 use crate::config::types::{AnsiColor, ComponentId, StyleMode};
+use crate::core::ring_cursor::RingCursor;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
 use std::path::PathBuf;
@@ -32,14 +33,14 @@ pub struct App {
 
     // UI state
     pub selected_component: usize,
-    pub selected_panel: Panel,
+    pub selected_panel: RingCursor<Panel>,
     pub selected_field: FieldSelection,
     pub should_quit: bool,
     pub status_message: Option<String>,
 
     // Popup state
     pub file_menu_open: bool,
-    pub file_menu_selection: usize,
+    pub file_menu_selection: RingCursor<FileMenuAction>,
     pub import_colors_open: bool,
     pub import_colors_selection: usize,
     pub import_icons_open: bool,
@@ -75,9 +76,21 @@ pub enum ConfirmAction {
     DiscardAndOpen,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileMenuAction {
+    SaveActivateExit,
+    Activate,
+    Save,
+    SaveAs,
+    Open,
+    Rename,
+    Delete,
+    Exit,
+}
+
 #[derive(Debug, Clone)]
 pub struct ColorPickerState {
-    pub mode: ColorPickerMode,
+    pub mode: RingCursor<ColorPickerMode>,
     pub c16_selection: u8,
     pub c256_selection: u8,
     pub rgb_r: String,
@@ -96,7 +109,11 @@ pub enum ColorPickerMode {
 impl Default for ColorPickerState {
     fn default() -> Self {
         Self {
-            mode: ColorPickerMode::Color16,
+            mode: RingCursor::new(vec![
+                ColorPickerMode::Color16,
+                ColorPickerMode::Color256,
+                ColorPickerMode::Rgb,
+            ]),
             c16_selection: 0,
             c256_selection: 0,
             rgb_r: "128".into(),
@@ -104,6 +121,21 @@ impl Default for ColorPickerState {
             rgb_b: "128".into(),
             rgb_focus: 0,
         }
+    }
+}
+
+impl FileMenuAction {
+    fn all() -> Vec<Self> {
+        vec![
+            Self::SaveActivateExit,
+            Self::Activate,
+            Self::Save,
+            Self::SaveAs,
+            Self::Open,
+            Self::Rename,
+            Self::Delete,
+            Self::Exit,
+        ]
     }
 }
 
@@ -145,12 +177,12 @@ impl App {
             theme_list_index,
             active_theme_name: active_name,
             selected_component: 0,
-            selected_panel: Panel::ComponentList,
+            selected_panel: RingCursor::new(vec![Panel::ComponentList, Panel::Editor]),
             selected_field: FieldSelection::Enabled,
             should_quit: false,
             status_message: None,
             file_menu_open: false,
-            file_menu_selection: 0,
+            file_menu_selection: RingCursor::new(FileMenuAction::all()),
             import_colors_open: false,
             import_colors_selection: 0,
             import_icons_open: false,
@@ -240,7 +272,7 @@ impl App {
         match code {
             KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => {
                 self.file_menu_open = true;
-                self.file_menu_selection = 0;
+                self.file_menu_selection.set(&FileMenuAction::SaveActivateExit);
             }
             KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => {
                 if self.is_dirty {
@@ -262,14 +294,10 @@ impl App {
             }
             KeyCode::Esc => {
                 self.file_menu_open = true;
-                self.file_menu_selection = 0;
+                self.file_menu_selection.set(&FileMenuAction::SaveActivateExit);
             }
-            KeyCode::Tab => {
-                self.selected_panel = match self.selected_panel {
-                    Panel::ComponentList => Panel::Editor,
-                    Panel::Editor => Panel::ComponentList,
-                };
-            }
+            KeyCode::Tab => { self.selected_panel.move_next(); }
+            KeyCode::BackTab => { self.selected_panel.move_prev(); }
             KeyCode::Up => {
                 if modifiers.contains(KeyModifiers::SHIFT) {
                     self.move_component_up();
@@ -285,14 +313,11 @@ impl App {
                 }
             }
             KeyCode::Enter => {
-                self.selected_panel = Panel::Editor;
+                self.selected_panel.set(&Panel::Editor);
             }
             KeyCode::Char(' ') => self.toggle_current(),
             KeyCode::Left | KeyCode::Right => {
-                self.selected_panel = match self.selected_panel {
-                    Panel::ComponentList => Panel::Editor,
-                    Panel::Editor => Panel::ComponentList,
-                };
+                self.selected_panel.move_next();
             }
             KeyCode::Char('a') | KeyCode::Char('A') => self.switch_theme(-1),
             KeyCode::Char('d') | KeyCode::Char('D') => self.switch_theme(1),
@@ -309,11 +334,13 @@ impl App {
     }
 
     fn move_selection(&mut self, delta: i32) {
-        match self.selected_panel {
+        match *self.selected_panel.current() {
             Panel::ComponentList => {
-                let max = self.component_count().saturating_sub(1) as i32;
-                self.selected_component =
-                    (self.selected_component as i32 + delta).clamp(0, max) as usize;
+                let count = self.component_count();
+                if count > 0 {
+                    self.selected_component =
+                        (self.selected_component as i32 + delta).rem_euclid(count as i32) as usize;
+                }
                 // Clamp field selection to valid fields for the new component
                 if let Some(comp) = self.theme.components.get(self.selected_component) {
                     let fields = FieldSelection::fields_for(comp);
@@ -338,7 +365,7 @@ impl App {
     }
 
     fn toggle_current(&mut self) {
-        match self.selected_panel {
+        match *self.selected_panel.current() {
             Panel::ComponentList => {
                 if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
                     comp.enabled = !comp.enabled;
@@ -486,35 +513,31 @@ impl App {
         }
         match code {
             KeyCode::Up => {
-                if self.file_menu_selection > 0 {
-                    self.file_menu_selection -= 1;
-                }
+                self.file_menu_selection.move_prev();
             }
             KeyCode::Down => {
-                if self.file_menu_selection + 1 < FILE_MENU_ITEMS.len() {
-                    self.file_menu_selection += 1;
-                }
+                self.file_menu_selection.move_next();
             }
             KeyCode::Char(c) => {
                 if let Some(idx) = FILE_MENU_ITEMS
                     .iter()
                     .position(|(_, mnemonic)| mnemonic.eq_ignore_ascii_case(&c))
                 {
-                    self.file_menu_selection = idx;
+                    let action = FileMenuAction::all()[idx];
+                    self.file_menu_selection.set(&action);
                 }
             }
             KeyCode::Enter => {
                 self.file_menu_open = false;
-                match self.file_menu_selection {
-                    0 => self.action_save_activate_exit(),
-                    1 => self.action_activate(),
-                    2 => self.action_save(),
-                    3 => self.action_save_as(),
-                    4 => self.action_open(),
-                    5 => self.action_rename(),
-                    6 => self.action_delete(),
-                    7 => self.action_exit(),
-                    _ => {}
+                match *self.file_menu_selection.current() {
+                    FileMenuAction::SaveActivateExit => self.action_save_activate_exit(),
+                    FileMenuAction::Activate => self.action_activate(),
+                    FileMenuAction::Save => self.action_save(),
+                    FileMenuAction::SaveAs => self.action_save_as(),
+                    FileMenuAction::Open => self.action_open(),
+                    FileMenuAction::Rename => self.action_rename(),
+                    FileMenuAction::Delete => self.action_delete(),
+                    FileMenuAction::Exit => self.action_exit(),
                 }
             }
             _ => {}
@@ -977,23 +1000,26 @@ impl App {
                 _ => None,
             };
             self.color_picker = match current_color {
-                Some(AnsiColor::Color16 { c16 }) => ColorPickerState {
-                    mode: ColorPickerMode::Color16,
-                    c16_selection: *c16,
-                    ..Default::default()
-                },
-                Some(AnsiColor::Color256 { c256 }) => ColorPickerState {
-                    mode: ColorPickerMode::Color256,
-                    c256_selection: *c256,
-                    ..Default::default()
-                },
-                Some(AnsiColor::Rgb { r, g, b }) => ColorPickerState {
-                    mode: ColorPickerMode::Rgb,
-                    rgb_r: r.to_string(),
-                    rgb_g: g.to_string(),
-                    rgb_b: b.to_string(),
-                    ..Default::default()
-                },
+                Some(AnsiColor::Color16 { c16 }) => {
+                    let mut state = ColorPickerState { c16_selection: *c16, ..Default::default() };
+                    state.mode.set(&ColorPickerMode::Color16);
+                    state
+                }
+                Some(AnsiColor::Color256 { c256 }) => {
+                    let mut state = ColorPickerState { c256_selection: *c256, ..Default::default() };
+                    state.mode.set(&ColorPickerMode::Color256);
+                    state
+                }
+                Some(AnsiColor::Rgb { r, g, b }) => {
+                    let mut state = ColorPickerState {
+                        rgb_r: r.to_string(),
+                        rgb_g: g.to_string(),
+                        rgb_b: b.to_string(),
+                        ..Default::default()
+                    };
+                    state.mode.set(&ColorPickerMode::Rgb);
+                    state
+                }
                 None => ColorPickerState::default(),
             };
         }
@@ -1006,14 +1032,9 @@ impl App {
             return;
         }
         match code {
-            KeyCode::Tab => {
-                self.color_picker.mode = match self.color_picker.mode {
-                    ColorPickerMode::Color16 => ColorPickerMode::Color256,
-                    ColorPickerMode::Color256 => ColorPickerMode::Rgb,
-                    ColorPickerMode::Rgb => ColorPickerMode::Color16,
-                };
-            }
-            KeyCode::Up => match self.color_picker.mode {
+            KeyCode::Tab => { self.color_picker.mode.move_next(); }
+            KeyCode::BackTab => { self.color_picker.mode.move_prev(); }
+            KeyCode::Up => match *self.color_picker.mode.current() {
                 ColorPickerMode::Color16 => {
                     let sel = self.color_picker.c16_selection;
                     if sel % 8 > 0 {
@@ -1030,7 +1051,7 @@ impl App {
                     }
                 }
             },
-            KeyCode::Down => match self.color_picker.mode {
+            KeyCode::Down => match *self.color_picker.mode.current() {
                 ColorPickerMode::Color16 => {
                     let sel = self.color_picker.c16_selection;
                     if sel % 8 < 7 {
@@ -1048,7 +1069,7 @@ impl App {
                     }
                 }
             },
-            KeyCode::Left => match self.color_picker.mode {
+            KeyCode::Left => match *self.color_picker.mode.current() {
                 ColorPickerMode::Color16 => {
                     if self.color_picker.c16_selection >= 8 {
                         self.color_picker.c16_selection -= 8;
@@ -1060,7 +1081,7 @@ impl App {
                 }
                 _ => {}
             },
-            KeyCode::Right => match self.color_picker.mode {
+            KeyCode::Right => match *self.color_picker.mode.current() {
                 ColorPickerMode::Color16 => {
                     if self.color_picker.c16_selection < 8 {
                         self.color_picker.c16_selection += 8;
@@ -1105,7 +1126,7 @@ impl App {
                 self.status_message = Some("Color removed".into());
             }
             KeyCode::Enter => {
-                let color = match self.color_picker.mode {
+                let color = match *self.color_picker.mode.current() {
                     ColorPickerMode::Color16 => {
                         AnsiColor::Color16 { c16: self.color_picker.c16_selection }
                     }
@@ -1215,7 +1236,7 @@ impl App {
 
         // Popups (rendered on top)
         if self.file_menu_open {
-            super::widgets::file_menu::render(f, f.area(), self.file_menu_selection);
+            super::widgets::file_menu::render(f, f.area(), self.file_menu_selection.index());
         }
         if self.import_colors_open {
             super::widgets::import_menu::render_colors(f, f.area(), self.import_colors_selection, &self.theme);

@@ -22,7 +22,7 @@ pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
     let mode_spans: Vec<Span> = modes
         .iter()
         .map(|(label, mode)| {
-            if *mode == state.mode {
+            if state.mode == *mode {
                 Span::styled(
                     format!("[{}]", label),
                     Style::default()
@@ -37,7 +37,7 @@ pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
     items.push(ListItem::new(Line::from(mode_spans)));
     items.push(ListItem::new(Line::from("")));
 
-    match state.mode {
+    match *state.mode.current() {
         ColorPickerMode::Color16 => {
             // Two columns: 0-7 left, 8-15 right
             for row in 0u8..8 {
