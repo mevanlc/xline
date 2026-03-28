@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 
 use crate::config::theme::UserTheme;
 
-/// Get the themes directory: ~/.claude/ccxline/themes/
+/// Get the themes directory: ~/.claude/xline/themes/
 pub fn themes_dir() -> PathBuf {
     let home = dirs::home_dir().expect("could not determine home directory");
-    home.join(".claude").join("ccxline").join("themes")
+    home.join(".claude").join("xline").join("themes")
 }
 
 /// Ensure the themes directory exists and contains at least one theme.

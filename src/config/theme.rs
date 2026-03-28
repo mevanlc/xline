@@ -6,7 +6,7 @@ use crate::config::types::{
 };
 
 /// A complete user theme — settings + colors + icons for all components.
-/// Stored as a .toml file under ~/.claude/ccxline/themes/{Name}.toml
+/// Stored as a .toml file under ~/.claude/xline/themes/{Name}.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserTheme {
     /// Whether this is the active theme.

@@ -88,7 +88,7 @@ pub fn render(f: &mut Frame, area: Rect, theme: &UserTheme) {
             Style::default().fg(TEXT_COLOR),
         )),
         Line::from(Span::styled(
-            format!("~/ccxline-v{}", env!("CARGO_PKG_VERSION")),
+            format!("~/xline-v{}", env!("CARGO_PKG_VERSION")),
             Style::default().fg(TEXT_COLOR),
         )),
     ]);
