@@ -107,15 +107,15 @@ impl Default for ColorPickerState {
     }
 }
 
-pub const FILE_MENU_ITEMS: &[&str] = &[
-    "Save, activate, and exit",
-    "Activate",
-    "Save",
-    "Save as...",
-    "Open...",
-    "Rename...",
-    "Delete",
-    "Exit",
+pub const FILE_MENU_ITEMS: &[(&str, char)] = &[
+    ("Save, activate, and exit", 's'),
+    ("Activate", 'a'),
+    ("Save", 'v'),
+    ("Save as...", 'e'),
+    ("Open...", 'o'),
+    ("Rename...", 'r'),
+    ("Delete", 'd'),
+    ("Exit", 'x'),
 ];
 
 impl App {
@@ -251,6 +251,15 @@ impl App {
                     self.should_quit = true;
                 }
             }
+            KeyCode::Char('q') | KeyCode::Char('Q') => {
+                if self.is_dirty {
+                    self.confirm_dialog_open = true;
+                    self.confirm_dialog_message = "Exit without saving changes?".into();
+                    self.confirm_dialog_action = ConfirmAction::ExitWithoutSaving;
+                } else {
+                    self.should_quit = true;
+                }
+            }
             KeyCode::Esc => {
                 self.file_menu_open = true;
                 self.file_menu_selection = 0;
@@ -285,8 +294,8 @@ impl App {
                     Panel::Editor => Panel::ComponentList,
                 };
             }
-            KeyCode::Char('q') | KeyCode::Char('Q') => self.switch_theme(-1),
-            KeyCode::Char('e') | KeyCode::Char('E') => self.switch_theme(1),
+            KeyCode::Char('a') | KeyCode::Char('A') => self.switch_theme(-1),
+            KeyCode::Char('d') | KeyCode::Char('D') => self.switch_theme(1),
             KeyCode::Char('c') | KeyCode::Char('C') => {
                 self.import_colors_open = true;
                 self.import_colors_selection = 0;
@@ -484,6 +493,14 @@ impl App {
             KeyCode::Down => {
                 if self.file_menu_selection + 1 < FILE_MENU_ITEMS.len() {
                     self.file_menu_selection += 1;
+                }
+            }
+            KeyCode::Char(c) => {
+                if let Some(idx) = FILE_MENU_ITEMS
+                    .iter()
+                    .position(|(_, mnemonic)| mnemonic.eq_ignore_ascii_case(&c))
+                {
+                    self.file_menu_selection = idx;
                 }
             }
             KeyCode::Enter => {

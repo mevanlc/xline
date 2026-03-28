@@ -24,8 +24,8 @@ fn label_style() -> Style {
 /// within their column, 1 space gap to label, 2 spaces between columns.
 ///
 /// ```text
-///   [Tab] Panel  [↑↓] Nav     [⏎] Edit    [I] Colors
-///    [^S] Menu   [←→] Theme  [SP] Toggle   [K] Icons
+///    [←→] Panel  [↑↓] Nav     [⏎] Edit/Toggle  [C] Colors
+///    [A/D] Theme   [^S] Menu         [S+↑↓] Reorder  [I] Icons
 /// ```
 pub fn render_grid(rows: &[&[(&str, &str)]]) -> Vec<Line<'static>> {
     if rows.is_empty() {

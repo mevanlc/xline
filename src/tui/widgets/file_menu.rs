@@ -8,13 +8,19 @@ use ratatui::{
 };
 
 pub fn render(f: &mut Frame, area: Rect, selection: usize) {
-    let popup = centered_rect(36, FILE_MENU_ITEMS.len() as u16 + 2, area);
-    f.render_widget(Clear, popup);
+    let popup_outer = centered_rect(38, FILE_MENU_ITEMS.len() as u16 + 4, area);
+    let popup = Rect::new(
+        popup_outer.x.saturating_add(1),
+        popup_outer.y.saturating_add(1),
+        popup_outer.width.saturating_sub(2),
+        popup_outer.height.saturating_sub(2),
+    );
+    f.render_widget(Clear, popup_outer);
 
     let items: Vec<ListItem> = FILE_MENU_ITEMS
         .iter()
         .enumerate()
-        .map(|(i, label)| {
+        .map(|(i, (label, mnemonic))| {
             let style = if i == selection {
                 Style::default()
                     .fg(Color::Yellow)
@@ -23,10 +29,8 @@ pub fn render(f: &mut Frame, area: Rect, selection: usize) {
                 Style::default().fg(Color::White)
             };
             let cursor = if i == selection { "> " } else { "  " };
-            ListItem::new(Line::from(Span::styled(
-                format!("{}{}", cursor, label),
-                style,
-            )))
+            let spans = mnemonic_line(cursor, label, *mnemonic, style, i == selection);
+            ListItem::new(Line::from(spans))
         })
         .collect();
 
@@ -38,6 +42,41 @@ pub fn render(f: &mut Frame, area: Rect, selection: usize) {
 
     let list = List::new(items).block(block);
     f.render_widget(list, popup);
+}
+
+fn mnemonic_line(
+    cursor: &str,
+    label: &str,
+    mnemonic: char,
+    style: Style,
+    selected: bool,
+) -> Vec<Span<'static>> {
+    let mnemonic_lower = mnemonic.to_ascii_lowercase();
+    let base_color = if selected { Color::Yellow } else { Color::White };
+    let mnemonic_style = Style::default()
+        .fg(if selected { Color::Cyan } else { Color::LightCyan })
+        .add_modifier(Modifier::BOLD);
+    let label_style = if selected {
+        Style::default()
+            .fg(base_color)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(base_color)
+    };
+
+    let mut spans = vec![Span::styled(cursor.to_string(), style)];
+
+    let mut highlighted = false;
+    for ch in label.chars() {
+        if !highlighted && ch.to_ascii_lowercase() == mnemonic_lower {
+            spans.push(Span::styled(ch.to_string(), mnemonic_style));
+            highlighted = true;
+        } else {
+            spans.push(Span::styled(ch.to_string(), label_style));
+        }
+    }
+
+    spans
 }
 
 fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
