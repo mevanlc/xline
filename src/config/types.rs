@@ -85,6 +85,7 @@ pub enum StyleMode {
     Plain,
     NerdFont,
     Powerline,
+    PlainPowerline,
 }
 
 impl StyleMode {
@@ -93,6 +94,7 @@ impl StyleMode {
             StyleMode::Plain => "Plain",
             StyleMode::NerdFont => "Nerd Font",
             StyleMode::Powerline => "Powerline",
+            StyleMode::PlainPowerline => "Plain Powerline",
         }
     }
 }

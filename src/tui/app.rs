@@ -391,7 +391,8 @@ impl App {
                             self.theme.style.mode = match self.theme.style.mode {
                                 StyleMode::Plain => StyleMode::NerdFont,
                                 StyleMode::NerdFont => StyleMode::Powerline,
-                                StyleMode::Powerline => StyleMode::Plain,
+                                StyleMode::Powerline => StyleMode::PlainPowerline,
+                                StyleMode::PlainPowerline => StyleMode::Plain,
                             };
                             self.status_message =
                                 Some(format!("Style: {}", self.theme.style.mode.display_name()));

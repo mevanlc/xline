@@ -170,7 +170,7 @@ pub fn render_icons(f: &mut Frame, area: Rect, selection: usize, theme: &UserThe
                     dest.icon = src.icon.clone();
                 }
             }
-            let mode = if ut.style.mode == StyleMode::Powerline {
+            let mode = if matches!(ut.style.mode, StyleMode::Powerline | StyleMode::PlainPowerline) {
                 if let Some(pl) = crate::presets::color_schemes::find("Powerline Dark") {
                     pl.apply_to(&mut preview_theme.components);
                 }

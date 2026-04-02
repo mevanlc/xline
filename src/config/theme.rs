@@ -200,7 +200,7 @@ impl UserTheme {
     pub fn separator_glyph(&self) -> &str {
         self.separator()
             .map(|s| match self.style.mode {
-                StyleMode::Plain => s.icon.plain.as_str(),
+                StyleMode::Plain | StyleMode::PlainPowerline => s.icon.plain.as_str(),
                 StyleMode::NerdFont | StyleMode::Powerline => s.icon.nerd_font.as_str(),
             })
             .unwrap_or(" | ")

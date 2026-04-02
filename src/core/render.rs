@@ -55,14 +55,14 @@ pub fn build_render_line(
     mode: StyleMode,
     texts: &HashMap<ComponentId, SegmentText>,
 ) -> RenderLine {
-    let is_powerline = mode == StyleMode::Powerline;
+    let is_powerline = matches!(mode, StyleMode::Powerline | StyleMode::PlainPowerline);
 
     // Gather separator info
     let sep_cfg = components.iter().find(|c| c.id == ComponentId::Separator);
     let sep_enabled = sep_cfg.map_or(false, |s| s.enabled);
     let sep_glyph = sep_cfg
         .map(|s| match mode {
-            StyleMode::Plain => s.icon.plain.as_str(),
+            StyleMode::Plain | StyleMode::PlainPowerline => s.icon.plain.as_str(),
             StyleMode::NerdFont | StyleMode::Powerline => s.icon.nerd_font.as_str(),
         })
         .unwrap_or(" | ");
@@ -97,7 +97,7 @@ pub fn build_render_line(
         }
 
         let icon = match mode {
-            StyleMode::Plain => comp.icon.plain.clone(),
+            StyleMode::Plain | StyleMode::PlainPowerline => comp.icon.plain.clone(),
             StyleMode::NerdFont | StyleMode::Powerline => comp.icon.nerd_font.clone(),
         };
 
