@@ -287,7 +287,11 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
                 );
 
                 if seg.bg.is_some() {
-                    spans.push(Span::styled(format!(" {} ", seg.icon), icon_style));
+                    if seg.icon.is_empty() {
+                        spans.push(Span::styled(" ".to_string(), icon_style));
+                    } else {
+                        spans.push(Span::styled(format!(" {} ", seg.icon), icon_style));
+                    }
                     if !seg.text.is_empty() {
                         spans.push(Span::styled(format!("{} ", seg.text), text_style));
                     }
@@ -298,6 +302,14 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
                     if seg.text.is_empty() && seg.secondary.is_empty() {
                         // Icons-only mode: just the icon, no trailing space
                         spans.push(Span::styled(seg.icon.clone(), icon_style));
+                    } else if seg.icon.is_empty() {
+                        spans.push(Span::styled(seg.text.clone(), text_style));
+                        if !seg.secondary.is_empty() {
+                            spans.push(Span::styled(
+                                format!(" {}", seg.secondary),
+                                text_style,
+                            ));
+                        }
                     } else {
                         spans.push(Span::styled(format!("{} ", seg.icon), icon_style));
                         spans.push(Span::styled(seg.text.clone(), text_style));
@@ -350,21 +362,29 @@ pub fn render_ansi(line: &RenderLine) -> String {
 fn ansi_segment(seg: &Segment) -> String {
     if let Some(bg) = &seg.bg {
         let bg_code = bg_ansi_code(bg);
-        let icon_colored = match &seg.icon_color {
-            Some(c) => fg_ansi_no_reset(c, &seg.icon),
-            None => seg.icon.clone(),
-        };
         let text_styled = style_no_reset(&seg.text, seg.text_color.as_ref(), seg.text_bold);
-        let mut content = format!(" {} {} ", icon_colored, text_styled);
+        let mut content = if seg.icon.is_empty() {
+            format!(" {} ", text_styled)
+        } else {
+            let icon_colored = match &seg.icon_color {
+                Some(c) => fg_ansi_no_reset(c, &seg.icon),
+                None => seg.icon.clone(),
+            };
+            format!(" {} {} ", icon_colored, text_styled)
+        };
         if !seg.secondary.is_empty() {
             let sec = style_no_reset(&seg.secondary, seg.text_color.as_ref(), seg.text_bold);
             content.push_str(&format!("{} ", sec));
         }
         format!("{}{}\x1b[49m", bg_code, content)
     } else {
-        let icon_colored = apply_color(&seg.icon, seg.icon_color.as_ref());
         let text_styled = apply_style(&seg.text, seg.text_color.as_ref(), seg.text_bold);
-        let mut out = format!("{} {}", icon_colored, text_styled);
+        let mut out = if seg.icon.is_empty() {
+            text_styled
+        } else {
+            let icon_colored = apply_color(&seg.icon, seg.icon_color.as_ref());
+            format!("{} {}", icon_colored, text_styled)
+        };
         if !seg.secondary.is_empty() {
             out.push_str(&format!(
                 " {}",
