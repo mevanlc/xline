@@ -1177,9 +1177,9 @@ impl App {
             .constraints([
                 Constraint::Length(preview_height), // Preview / Banner
                 Constraint::Length(spacer_height),  // Spacer
-                Constraint::Min(3),                // Main content (scrollable)
                 Constraint::Length(3),              // Themes bar
-                Constraint::Length(4),              // Keymap + Status
+                Constraint::Min(3),                // Main content (scrollable)
+                Constraint::Length(3),              // Keymap
             ])
             .split(f.area());
 
@@ -1190,6 +1190,15 @@ impl App {
             PreviewWidget::render(f, layout[0], &self.theme, compact);
         }
 
+        // Themes bar
+        super::widgets::theme_bar::render(
+            f,
+            layout[2],
+            &self.theme_list,
+            self.theme_list_index,
+            self.active_theme_name.as_deref(),
+        );
+
         // Main content: two columns
         let content = Layout::default()
             .direction(Direction::Horizontal)
@@ -1197,7 +1206,7 @@ impl App {
                 Constraint::Length(24),
                 Constraint::Min(30),
             ])
-            .split(layout[2]);
+            .split(layout[3]);
 
         ComponentListWidget::render(
             f,
@@ -1216,21 +1225,8 @@ impl App {
             self.selected_field,
         );
 
-        // Themes bar
-        super::widgets::theme_bar::render(
-            f,
-            layout[3],
-            &self.theme_list,
-            self.theme_list_index,
-            self.active_theme_name.as_deref(),
-        );
-
-        // Keymap + Status
-        HelpBarWidget::render(
-            f,
-            layout[4],
-            self.status_message.as_deref(),
-        );
+        // Keymap
+        HelpBarWidget::render(f, layout[4]);
 
         // Popups (rendered on top)
         if self.file_menu_open {
