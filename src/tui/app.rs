@@ -2,6 +2,7 @@ use crate::config::manager;
 use crate::config::theme::UserTheme;
 use crate::config::types::{AnsiColor, ComponentId, StyleMode};
 use crate::core::ring_cursor::RingCursor;
+use crate::data::icon_catalog::{IconCatalogData, IconPickerTab};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
 use std::path::PathBuf;
@@ -56,17 +57,15 @@ pub struct App {
     pub confirm_dialog_action: ConfirmAction,
     pub color_picker_open: bool,
     pub color_picker: ColorPickerState,
+    pub icon_picker_open: bool,
+    pub icon_picker: IconPickerState,
+    pub icon_catalog: IconCatalogData,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NameInputPurpose {
     SaveAs,
     Rename,
-    EditPlainIcon,
-    EditNerdFontIcon,
-    EditOpusIcon,
-    EditSonnetIcon,
-    EditHaikuIcon,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,6 +119,43 @@ impl Default for ColorPickerState {
             rgb_g: "128".into(),
             rgb_b: "128".into(),
             rgb_focus: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IconPickerPurpose {
+    PlainIcon,
+    NerdFontIcon,
+    OpusIcon,
+    SonnetIcon,
+    HaikuIcon,
+}
+
+#[derive(Debug, Clone)]
+pub struct IconPickerState {
+    pub tab: RingCursor<IconPickerTab>,
+    pub purpose: IconPickerPurpose,
+    pub search_query: String,
+    pub selected_index: usize,
+    pub scroll_offset: usize,
+    pub custom_buffer: String,
+}
+
+impl Default for IconPickerState {
+    fn default() -> Self {
+        Self {
+            tab: RingCursor::new(vec![
+                IconPickerTab::Emoji,
+                IconPickerTab::NerdFont,
+                IconPickerTab::Unicode,
+                IconPickerTab::Custom,
+            ]),
+            purpose: IconPickerPurpose::PlainIcon,
+            search_query: String::new(),
+            selected_index: 0,
+            scroll_offset: 0,
+            custom_buffer: String::new(),
         }
     }
 }
@@ -198,6 +234,9 @@ impl App {
             confirm_dialog_action: ConfirmAction::ExitWithoutSaving,
             color_picker_open: false,
             color_picker: ColorPickerState::default(),
+            icon_picker_open: false,
+            icon_picker: IconPickerState::default(),
+            icon_catalog: IconCatalogData::load(),
         }
     }
 
@@ -249,6 +288,10 @@ impl App {
         }
         if self.color_picker_open {
             self.handle_color_picker(code, modifiers, is_cancel);
+            return;
+        }
+        if self.icon_picker_open {
+            self.handle_icon_picker(code, is_cancel);
             return;
         }
         if self.import_colors_open {
@@ -399,16 +442,10 @@ impl App {
                             self.mark_dirty();
                         }
                         FieldSelection::PlainIcon => {
-                            let comp = &self.theme.components[self.selected_component];
-                            self.name_input_open = true;
-                            self.name_input_buffer = comp.icon.plain.clone();
-                            self.name_input_purpose = NameInputPurpose::EditPlainIcon;
+                            self.open_icon_picker(IconPickerPurpose::PlainIcon);
                         }
                         FieldSelection::NerdFontIcon => {
-                            let comp = &self.theme.components[self.selected_component];
-                            self.name_input_open = true;
-                            self.name_input_buffer = comp.icon.nerd_font.clone();
-                            self.name_input_purpose = NameInputPurpose::EditNerdFontIcon;
+                            self.open_icon_picker(IconPickerPurpose::NerdFontIcon);
                         }
                         FieldSelection::PerModelIcons => {
                             let comp = &mut self.theme.components[self.selected_component];
@@ -435,22 +472,13 @@ impl App {
                             self.mark_dirty();
                         }
                         FieldSelection::OpusIcon => {
-                            let comp = &self.theme.components[self.selected_component];
-                            self.name_input_open = true;
-                            self.name_input_buffer = comp.icon.per_model.as_ref().map_or(String::new(), |p| p.opus.clone());
-                            self.name_input_purpose = NameInputPurpose::EditOpusIcon;
+                            self.open_icon_picker(IconPickerPurpose::OpusIcon);
                         }
                         FieldSelection::SonnetIcon => {
-                            let comp = &self.theme.components[self.selected_component];
-                            self.name_input_open = true;
-                            self.name_input_buffer = comp.icon.per_model.as_ref().map_or(String::new(), |p| p.sonnet.clone());
-                            self.name_input_purpose = NameInputPurpose::EditSonnetIcon;
+                            self.open_icon_picker(IconPickerPurpose::SonnetIcon);
                         }
                         FieldSelection::HaikuIcon => {
-                            let comp = &self.theme.components[self.selected_component];
-                            self.name_input_open = true;
-                            self.name_input_buffer = comp.icon.per_model.as_ref().map_or(String::new(), |p| p.haiku.clone());
-                            self.name_input_purpose = NameInputPurpose::EditHaikuIcon;
+                            self.open_icon_picker(IconPickerPurpose::HaikuIcon);
                         }
                         FieldSelection::IconColor
                         | FieldSelection::TextColor
@@ -639,60 +667,14 @@ impl App {
         match code {
             KeyCode::Enter => {
                 self.name_input_open = false;
+                let name = self.name_input_buffer.trim().to_string();
+                if name.is_empty() || !manager::is_valid_theme_name(&name) {
+                    self.status_message = Some("Invalid theme name".into());
+                    return;
+                }
                 match self.name_input_purpose {
-                    NameInputPurpose::EditPlainIcon => {
-                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
-                            comp.icon.plain = self.name_input_buffer.clone();
-                            self.status_message = Some("Plain icon updated".into());
-                            self.mark_dirty();
-                        }
-                    }
-                    NameInputPurpose::EditNerdFontIcon => {
-                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
-                            comp.icon.nerd_font = self.name_input_buffer.clone();
-                            self.status_message = Some("Nerd Font icon updated".into());
-                            self.mark_dirty();
-                        }
-                    }
-                    NameInputPurpose::EditOpusIcon => {
-                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
-                            if let Some(pm) = comp.icon.per_model.as_mut() {
-                                pm.opus = self.name_input_buffer.clone();
-                                self.status_message = Some("Opus icon updated".into());
-                                self.mark_dirty();
-                            }
-                        }
-                    }
-                    NameInputPurpose::EditSonnetIcon => {
-                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
-                            if let Some(pm) = comp.icon.per_model.as_mut() {
-                                pm.sonnet = self.name_input_buffer.clone();
-                                self.status_message = Some("Sonnet icon updated".into());
-                                self.mark_dirty();
-                            }
-                        }
-                    }
-                    NameInputPurpose::EditHaikuIcon => {
-                        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
-                            if let Some(pm) = comp.icon.per_model.as_mut() {
-                                pm.haiku = self.name_input_buffer.clone();
-                                self.status_message = Some("Haiku icon updated".into());
-                                self.mark_dirty();
-                            }
-                        }
-                    }
-                    _ => {
-                        let name = self.name_input_buffer.trim().to_string();
-                        if name.is_empty() || !manager::is_valid_theme_name(&name) {
-                            self.status_message = Some("Invalid theme name".into());
-                            return;
-                        }
-                        match self.name_input_purpose {
-                            NameInputPurpose::SaveAs => self.finish_save_as(&name),
-                            NameInputPurpose::Rename => self.finish_rename(&name),
-                            _ => unreachable!(),
-                        }
-                    }
+                    NameInputPurpose::SaveAs => self.finish_save_as(&name),
+                    NameInputPurpose::Rename => self.finish_rename(&name),
                 }
             }
             KeyCode::Char(c) => self.name_input_buffer.push(c),
@@ -1154,6 +1136,244 @@ impl App {
         }
     }
 
+    // --- Icon picker ---
+
+    fn open_icon_picker(&mut self, purpose: IconPickerPurpose) {
+        let initial_tab = match purpose {
+            IconPickerPurpose::NerdFontIcon => IconPickerTab::NerdFont,
+            _ => IconPickerTab::Emoji,
+        };
+
+        // Pre-fill custom buffer with the current icon value
+        let current = if let Some(comp) = self.theme.components.get(self.selected_component) {
+            match purpose {
+                IconPickerPurpose::PlainIcon => comp.icon.plain.clone(),
+                IconPickerPurpose::NerdFontIcon => comp.icon.nerd_font.clone(),
+                IconPickerPurpose::OpusIcon => {
+                    comp.icon.per_model.as_ref().map_or(String::new(), |p| p.opus.clone())
+                }
+                IconPickerPurpose::SonnetIcon => {
+                    comp.icon.per_model.as_ref().map_or(String::new(), |p| p.sonnet.clone())
+                }
+                IconPickerPurpose::HaikuIcon => {
+                    comp.icon.per_model.as_ref().map_or(String::new(), |p| p.haiku.clone())
+                }
+            }
+        } else {
+            String::new()
+        };
+
+        self.icon_picker = IconPickerState {
+            tab: RingCursor::new(vec![
+                IconPickerTab::Emoji,
+                IconPickerTab::NerdFont,
+                IconPickerTab::Unicode,
+                IconPickerTab::Custom,
+            ]),
+            purpose,
+            search_query: String::new(),
+            selected_index: 0,
+            scroll_offset: 0,
+            custom_buffer: current,
+        };
+        self.icon_picker.tab.set(&initial_tab);
+        self.icon_picker_open = true;
+    }
+
+    fn handle_icon_picker(&mut self, code: KeyCode, is_cancel: bool) {
+        if is_cancel {
+            self.icon_picker_open = false;
+            return;
+        }
+
+        let is_custom = *self.icon_picker.tab.current() == IconPickerTab::Custom;
+
+        match code {
+            KeyCode::Tab | KeyCode::Right if !is_custom => {
+                self.icon_picker.tab.move_next();
+                self.icon_picker.selected_index = 0;
+                self.icon_picker.scroll_offset = 0;
+            }
+            KeyCode::BackTab | KeyCode::Left if !is_custom => {
+                self.icon_picker.tab.move_prev();
+                self.icon_picker.selected_index = 0;
+                self.icon_picker.scroll_offset = 0;
+            }
+            KeyCode::Tab => {
+                self.icon_picker.tab.move_next();
+                self.icon_picker.selected_index = 0;
+                self.icon_picker.scroll_offset = 0;
+            }
+            KeyCode::BackTab => {
+                self.icon_picker.tab.move_prev();
+                self.icon_picker.selected_index = 0;
+                self.icon_picker.scroll_offset = 0;
+            }
+            KeyCode::Up if !is_custom => {
+                if self.icon_picker.selected_index > 0 {
+                    self.icon_picker.selected_index -= 1;
+                    self.adjust_icon_picker_scroll();
+                }
+            }
+            KeyCode::Down if !is_custom => {
+                let max = self.icon_picker_selectable_count();
+                if max > 0 && self.icon_picker.selected_index < max - 1 {
+                    self.icon_picker.selected_index += 1;
+                    self.adjust_icon_picker_scroll();
+                }
+            }
+            KeyCode::PageUp if !is_custom => {
+                let page = self.icon_picker_visible_height();
+                self.icon_picker.selected_index =
+                    self.icon_picker.selected_index.saturating_sub(page);
+                self.adjust_icon_picker_scroll();
+            }
+            KeyCode::PageDown if !is_custom => {
+                let page = self.icon_picker_visible_height();
+                let max = self.icon_picker_selectable_count();
+                if max > 0 {
+                    self.icon_picker.selected_index =
+                        (self.icon_picker.selected_index + page).min(max - 1);
+                    self.adjust_icon_picker_scroll();
+                }
+            }
+            KeyCode::Home if !is_custom => {
+                self.icon_picker.selected_index = 0;
+                self.adjust_icon_picker_scroll();
+            }
+            KeyCode::End if !is_custom => {
+                let max = self.icon_picker_selectable_count();
+                if max > 0 {
+                    self.icon_picker.selected_index = max - 1;
+                    self.adjust_icon_picker_scroll();
+                }
+            }
+            KeyCode::Enter => {
+                self.apply_icon_picker_selection();
+            }
+            KeyCode::Char(c) => {
+                if is_custom {
+                    self.icon_picker.custom_buffer.push(c);
+                } else {
+                    self.icon_picker.search_query.push(c);
+                    self.icon_picker.selected_index = 0;
+                    self.icon_picker.scroll_offset = 0;
+                }
+            }
+            KeyCode::Backspace => {
+                if is_custom {
+                    self.icon_picker.custom_buffer.pop();
+                } else {
+                    self.icon_picker.search_query.pop();
+                    self.icon_picker.selected_index = 0;
+                    self.icon_picker.scroll_offset = 0;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn icon_picker_selectable_count(&self) -> usize {
+        let tab = *self.icon_picker.tab.current();
+        let sections = self.icon_catalog.sections(tab, &self.icon_picker.search_query);
+        let flat = super::widgets::icon_picker::flatten_sections(&sections);
+        super::widgets::icon_picker::selectable_count(&flat)
+    }
+
+    fn icon_picker_visible_height(&self) -> usize {
+        // popup=26, outer border=2, tabs=3, search=3, keymap=3, icons border=2 → 13
+        13
+    }
+
+    fn adjust_icon_picker_scroll(&mut self) {
+        let visible = self.icon_picker_visible_height();
+        let tab = *self.icon_picker.tab.current();
+        let sections = self.icon_catalog.sections(tab, &self.icon_picker.search_query);
+        let flat = super::widgets::icon_picker::flatten_sections(&sections);
+
+        // Find the flat-list index of the selected item
+        let mut sel_count = 0;
+        let mut flat_idx = 0;
+        for (i, item) in flat.iter().enumerate() {
+            if matches!(item, super::widgets::icon_picker::FlatItem::Icon { .. }) {
+                if sel_count == self.icon_picker.selected_index {
+                    flat_idx = i;
+                    break;
+                }
+                sel_count += 1;
+            }
+        }
+
+        if flat_idx < self.icon_picker.scroll_offset {
+            self.icon_picker.scroll_offset = flat_idx;
+        } else if flat_idx >= self.icon_picker.scroll_offset + visible {
+            self.icon_picker.scroll_offset = flat_idx.saturating_sub(visible - 1);
+        }
+    }
+
+    fn apply_icon_picker_selection(&mut self) {
+        let is_custom = *self.icon_picker.tab.current() == IconPickerTab::Custom;
+
+        let icon_str = if is_custom {
+            self.icon_picker.custom_buffer.clone()
+        } else {
+            let tab = *self.icon_picker.tab.current();
+            let sections = self.icon_catalog.sections(tab, &self.icon_picker.search_query);
+            let flat = super::widgets::icon_picker::flatten_sections(&sections);
+
+            // Find the icon at selected_index
+            let mut sel_count = 0;
+            let mut found = None;
+            for item in &flat {
+                if let super::widgets::icon_picker::FlatItem::Icon { icon, .. } = item {
+                    if sel_count == self.icon_picker.selected_index {
+                        found = Some(icon.clone());
+                        break;
+                    }
+                    sel_count += 1;
+                }
+            }
+            match found {
+                Some(s) => s,
+                None => return, // nothing selected
+            }
+        };
+
+        if let Some(comp) = self.theme.components.get_mut(self.selected_component) {
+            let label = match self.icon_picker.purpose {
+                IconPickerPurpose::PlainIcon => {
+                    comp.icon.plain = icon_str;
+                    "Plain icon"
+                }
+                IconPickerPurpose::NerdFontIcon => {
+                    comp.icon.nerd_font = icon_str;
+                    "Nerd Font icon"
+                }
+                IconPickerPurpose::OpusIcon => {
+                    if let Some(pm) = comp.icon.per_model.as_mut() {
+                        pm.opus = icon_str;
+                    }
+                    "Opus icon"
+                }
+                IconPickerPurpose::SonnetIcon => {
+                    if let Some(pm) = comp.icon.per_model.as_mut() {
+                        pm.sonnet = icon_str;
+                    }
+                    "Sonnet icon"
+                }
+                IconPickerPurpose::HaikuIcon => {
+                    if let Some(pm) = comp.icon.per_model.as_mut() {
+                        pm.haiku = icon_str;
+                    }
+                    "Haiku icon"
+                }
+            };
+            self.status_message = Some(format!("{} updated", label));
+            self.mark_dirty();
+        }
+        self.icon_picker_open = false;
+    }
+
     // --- UI rendering ---
 
     pub fn ui(&self, f: &mut Frame) {
@@ -1250,11 +1470,6 @@ impl App {
             let title = match self.name_input_purpose {
                 NameInputPurpose::SaveAs => "Save As",
                 NameInputPurpose::Rename => "Rename",
-                NameInputPurpose::EditPlainIcon => "Plain Icon",
-                NameInputPurpose::EditNerdFontIcon => "Nerd Font Icon",
-                NameInputPurpose::EditOpusIcon => "Opus Icon",
-                NameInputPurpose::EditSonnetIcon => "Sonnet Icon",
-                NameInputPurpose::EditHaikuIcon => "Haiku Icon",
             };
             super::widgets::name_input::render(f, f.area(), title, &self.name_input_buffer);
         }
@@ -1263,6 +1478,9 @@ impl App {
         }
         if self.color_picker_open {
             super::widgets::color_picker::render(f, f.area(), &self.color_picker);
+        }
+        if self.icon_picker_open {
+            super::widgets::icon_picker::render(f, f.area(), &self.icon_picker, &self.icon_catalog);
         }
     }
 }
