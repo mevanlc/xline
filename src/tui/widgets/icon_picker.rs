@@ -278,6 +278,27 @@ fn render_icon_list(
 
     let para = Paragraph::new(lines);
     f.render_widget(para, inner);
+
+    // Page counter in bottom-right of the Icons block border
+    if visible_height > 0 && !flat.is_empty() {
+        let total_pages = (flat.len() + visible_height - 1) / visible_height;
+        let current_page = scroll / visible_height + 1;
+        let counter = format!(" Page {}/{} ", current_page, total_pages);
+        let counter_width = counter.len() as u16;
+        let counter_area = Rect {
+            x: area.x + area.width.saturating_sub(counter_width + 1),
+            y: area.y + area.height - 1,
+            width: counter_width,
+            height: 1,
+        };
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                counter,
+                Style::default().fg(Color::Indexed(240)),
+            )),
+            counter_area,
+        );
+    }
 }
 
 fn render_keymap(f: &mut Frame, area: Rect, hints: &[(&str, &str)]) {
