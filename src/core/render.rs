@@ -6,6 +6,9 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::config::types::{AnsiColor, ComponentConfig, ComponentId, StyleMode};
 
+const POWERLINE_SEPARATOR_GLYPH: &str = "\u{e0b0}";
+const PLAIN_POWERLINE_SEPARATOR_GLYPH: &str = "\u{25ba}";
+
 // ---------------------------------------------------------------------------
 // Data model
 // ---------------------------------------------------------------------------
@@ -83,7 +86,7 @@ pub fn build_render_line(
                 let prev_bg = enabled[i - 1].colors.background.clone();
                 let curr_bg = comp.colors.background.clone();
                 items.push(RenderItem::Sep(SepToken {
-                    glyph: "\u{e0b0}".into(),
+                    glyph: powerline_separator_glyph(mode).into(),
                     fg: prev_bg,
                     bg: curr_bg,
                 }));
@@ -116,6 +119,14 @@ pub fn build_render_line(
     }
 
     RenderLine { items }
+}
+
+fn powerline_separator_glyph(mode: StyleMode) -> &'static str {
+    match mode {
+        StyleMode::PlainPowerline => PLAIN_POWERLINE_SEPARATOR_GLYPH,
+        StyleMode::Powerline => POWERLINE_SEPARATOR_GLYPH,
+        StyleMode::Plain | StyleMode::NerdFont => unreachable!("non-powerline mode"),
+    }
 }
 
 /// Pad icons across multiple RenderLines so segment columns align.
@@ -343,10 +354,10 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
 /// Convert a RenderLine to an ANSI escape-coded string for terminal output.
 pub fn render_ansi(line: &RenderLine) -> String {
     let mut result = String::new();
-    let has_powerline = line
-        .items
-        .iter()
-        .any(|item| matches!(item, RenderItem::Sep(s) if s.glyph == "\u{e0b0}"));
+    let needs_reset = line.items.iter().any(|item| match item {
+        RenderItem::Seg(seg) => seg.bg.is_some(),
+        RenderItem::Sep(sep) => sep.bg.is_some(),
+    });
 
     for item in &line.items {
         match item {
@@ -359,7 +370,7 @@ pub fn render_ansi(line: &RenderLine) -> String {
         }
     }
 
-    if has_powerline && !result.is_empty() {
+    if needs_reset && !result.is_empty() {
         result.push_str("\x1b[0m");
     }
 
@@ -464,6 +475,58 @@ fn style_no_reset(text: &str, color: Option<&AnsiColor>, bold: bool) -> String {
         text.to_string()
     } else {
         format!("\x1b[{}m{}", codes.join(";"), text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::config::theme::UserTheme;
+    use crate::config::types::{ComponentId, StyleMode};
+
+    use super::{PLAIN_POWERLINE_SEPARATOR_GLYPH, RenderItem, build_render_line, render_ansi};
+
+    #[test]
+    fn plain_powerline_uses_solid_pointer_separator() {
+        let mut theme = UserTheme::default_theme();
+        let powerline = crate::presets::icon_sets::find("Powerline").unwrap();
+        let scheme = crate::presets::color_schemes::find("Powerline Dark").unwrap();
+        powerline.apply_to(&mut theme.components);
+        scheme.apply_to(&mut theme.components);
+
+        let mut texts = HashMap::new();
+        texts.insert(ComponentId::Model, ("model".into(), String::new()));
+        texts.insert(ComponentId::Directory, ("dir".into(), String::new()));
+
+        let line = build_render_line(&theme.components, StyleMode::PlainPowerline, &texts);
+        let sep = line
+            .items
+            .iter()
+            .find_map(|item| match item {
+                RenderItem::Sep(sep) => Some(sep),
+                RenderItem::Seg(_) => None,
+            })
+            .unwrap();
+
+        assert_eq!(sep.glyph, PLAIN_POWERLINE_SEPARATOR_GLYPH);
+    }
+
+    #[test]
+    fn render_ansi_resets_after_plain_powerline_line() {
+        let mut theme = UserTheme::default_theme();
+        let powerline = crate::presets::icon_sets::find("Powerline").unwrap();
+        let scheme = crate::presets::color_schemes::find("Powerline Dark").unwrap();
+        powerline.apply_to(&mut theme.components);
+        scheme.apply_to(&mut theme.components);
+
+        let mut texts = HashMap::new();
+        texts.insert(ComponentId::Model, ("model".into(), String::new()));
+
+        let line = build_render_line(&theme.components, StyleMode::PlainPowerline, &texts);
+        let ansi = render_ansi(&line);
+
+        assert!(ansi.ends_with("\x1b[0m"));
     }
 }
 
