@@ -312,10 +312,7 @@ impl App {
                     self.move_selection(1);
                 }
             }
-            KeyCode::Enter => {
-                self.selected_panel.set(&Panel::Editor);
-            }
-            KeyCode::Char(' ') => self.toggle_current(),
+            KeyCode::Char(' ') | KeyCode::Enter => self.toggle_current(),
             KeyCode::Left | KeyCode::Right => {
                 self.selected_panel.move_next();
             }
