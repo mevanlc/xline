@@ -36,11 +36,17 @@ impl IconSet {
 
     /// Get icons for a specific component.
     pub fn get(&self, id: ComponentId) -> Option<&ComponentIcons> {
-        self.entries.iter().find(|(cid, _)| *cid == id).map(|(_, i)| i)
+        self.entries
+            .iter()
+            .find(|(cid, _)| *cid == id)
+            .map(|(_, i)| i)
     }
 
     /// Whether any single theme's components supply all of this set's icons.
-    pub fn is_supplied_by(&self, theme_components: &[crate::config::types::ComponentConfig]) -> bool {
+    pub fn is_supplied_by(
+        &self,
+        theme_components: &[crate::config::types::ComponentConfig],
+    ) -> bool {
         self.entries.iter().all(|(id, icons)| {
             theme_components
                 .iter()
@@ -58,10 +64,7 @@ impl IconSet {
     }
 
     /// Apply this icon set to a theme's components (mutates in place).
-    pub fn apply_to(
-        &self,
-        components: &mut [crate::config::types::ComponentConfig],
-    ) {
+    pub fn apply_to(&self, components: &mut [crate::config::types::ComponentConfig]) {
         for comp in components.iter_mut() {
             if let Some(icons) = self.get(comp.id) {
                 comp.icon.plain = icons.plain.to_string();
@@ -83,5 +86,7 @@ pub fn all() -> Vec<IconSet> {
 
 /// Find an icon set by name (case-insensitive).
 pub fn find(name: &str) -> Option<IconSet> {
-    all().into_iter().find(|s| s.name.eq_ignore_ascii_case(name))
+    all()
+        .into_iter()
+        .find(|s| s.name.eq_ignore_ascii_case(name))
 }

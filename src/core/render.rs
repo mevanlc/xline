@@ -126,7 +126,12 @@ pub fn align_lines(lines: &mut [RenderLine]) {
     // Collect segment icon widths per position across all lines
     let max_positions = lines
         .iter()
-        .map(|l| l.items.iter().filter(|i| matches!(i, RenderItem::Seg(_))).count())
+        .map(|l| {
+            l.items
+                .iter()
+                .filter(|i| matches!(i, RenderItem::Seg(_)))
+                .count()
+        })
         .max()
         .unwrap_or(0);
 
@@ -168,7 +173,12 @@ pub fn align_lines(lines: &mut [RenderLine]) {
 pub fn align_lines_refs(lines: &mut [&mut RenderLine]) {
     let max_positions = lines
         .iter()
-        .map(|l| l.items.iter().filter(|i| matches!(i, RenderItem::Seg(_))).count())
+        .map(|l| {
+            l.items
+                .iter()
+                .filter(|i| matches!(i, RenderItem::Seg(_)))
+                .count()
+        })
         .max()
         .unwrap_or(0);
 
@@ -213,7 +223,10 @@ pub fn demo_texts_full() -> HashMap<ComponentId, SegmentText> {
         (ComponentId::Model, ("Sonnet 4.5".into(), String::new())),
         (ComponentId::Directory, ("project".into(), String::new())),
         (ComponentId::Git, ("main \u{2713}".into(), String::new())),
-        (ComponentId::ContextWindow, ("12% \u{b7} 24k tokens".into(), String::new())),
+        (
+            ComponentId::ContextWindow,
+            ("12% \u{b7} 24k tokens".into(), String::new()),
+        ),
         (ComponentId::Usage, ("45%".into(), String::new())),
         (ComponentId::Cost, ("$1.23".into(), String::new())),
         (ComponentId::Session, ("5m".into(), String::new())),
@@ -248,7 +261,10 @@ pub fn texts_from_data(
 /// Returns (texts, dynamic_icons) where dynamic_icons maps ComponentId → icon override.
 pub fn texts_and_icons_from_data(
     data: &[(ComponentConfig, crate::core::components::ComponentData)],
-) -> (HashMap<ComponentId, SegmentText>, HashMap<ComponentId, String>) {
+) -> (
+    HashMap<ComponentId, SegmentText>,
+    HashMap<ComponentId, String>,
+) {
     let mut texts = HashMap::new();
     let mut icons = HashMap::new();
     for (cfg, d) in data {
@@ -275,16 +291,10 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
                 spans.push(Span::styled(sep.glyph.clone(), style));
             }
             RenderItem::Seg(seg) => {
-                let icon_style = ansi_to_style_with_bg(
-                    seg.icon_color.as_ref(),
-                    seg.bg.as_ref(),
-                    false,
-                );
-                let text_style = ansi_to_style_with_bg(
-                    seg.text_color.as_ref(),
-                    seg.bg.as_ref(),
-                    seg.text_bold,
-                );
+                let icon_style =
+                    ansi_to_style_with_bg(seg.icon_color.as_ref(), seg.bg.as_ref(), false);
+                let text_style =
+                    ansi_to_style_with_bg(seg.text_color.as_ref(), seg.bg.as_ref(), seg.text_bold);
 
                 if seg.bg.is_some() {
                     if seg.icon.is_empty() {
@@ -305,19 +315,13 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
                     } else if seg.icon.is_empty() {
                         spans.push(Span::styled(seg.text.clone(), text_style));
                         if !seg.secondary.is_empty() {
-                            spans.push(Span::styled(
-                                format!(" {}", seg.secondary),
-                                text_style,
-                            ));
+                            spans.push(Span::styled(format!(" {}", seg.secondary), text_style));
                         }
                     } else {
                         spans.push(Span::styled(format!("{} ", seg.icon), icon_style));
                         spans.push(Span::styled(seg.text.clone(), text_style));
                         if !seg.secondary.is_empty() {
-                            spans.push(Span::styled(
-                                format!(" {}", seg.secondary),
-                                text_style,
-                            ));
+                            spans.push(Span::styled(format!(" {}", seg.secondary), text_style));
                         }
                     }
                 }
@@ -339,7 +343,10 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
 /// Convert a RenderLine to an ANSI escape-coded string for terminal output.
 pub fn render_ansi(line: &RenderLine) -> String {
     let mut result = String::new();
-    let has_powerline = line.items.iter().any(|item| matches!(item, RenderItem::Sep(s) if s.glyph == "\u{e0b0}"));
+    let has_powerline = line
+        .items
+        .iter()
+        .any(|item| matches!(item, RenderItem::Sep(s) if s.glyph == "\u{e0b0}"));
 
     for item in &line.items {
         match item {
@@ -398,7 +405,12 @@ fn ansi_segment(seg: &Segment) -> String {
 fn ansi_sep(sep: &SepToken) -> String {
     match (&sep.fg, &sep.bg) {
         (Some(fg), Some(bg)) => {
-            format!("{}{}{}\x1b[0m", bg_ansi_code(bg), fg_ansi_code(fg), sep.glyph)
+            format!(
+                "{}{}{}\x1b[0m",
+                bg_ansi_code(bg),
+                fg_ansi_code(fg),
+                sep.glyph
+            )
         }
         (Some(fg), None) => {
             format!("{}{}\x1b[0m", fg_ansi_code(fg), sep.glyph)
@@ -462,7 +474,11 @@ fn fg_ansi_code(color: &AnsiColor) -> String {
 fn fg_sgr(color: &AnsiColor) -> String {
     match color {
         AnsiColor::Color16 { c16 } => {
-            if *c16 < 8 { (30 + c16).to_string() } else { (90 + (c16 - 8)).to_string() }
+            if *c16 < 8 {
+                (30 + c16).to_string()
+            } else {
+                (90 + (c16 - 8)).to_string()
+            }
         }
         AnsiColor::Color256 { c256 } => format!("38;5;{}", c256),
         AnsiColor::Rgb { r, g, b } => format!("38;2;{};{};{}", r, g, b),
@@ -484,11 +500,7 @@ fn bg_ansi_code(color: &AnsiColor) -> String {
 // Ratatui color conversion helpers
 // ---------------------------------------------------------------------------
 
-fn ansi_to_style_with_bg(
-    fg: Option<&AnsiColor>,
-    bg: Option<&AnsiColor>,
-    bold: bool,
-) -> Style {
+fn ansi_to_style_with_bg(fg: Option<&AnsiColor>, bg: Option<&AnsiColor>, bold: bool) -> Style {
     let mut style = Style::default();
     if let Some(c) = fg {
         style = style.fg(ansi_to_ratatui_color(c));

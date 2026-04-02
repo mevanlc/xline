@@ -3,11 +3,11 @@ use crate::config::theme::UserTheme;
 use crate::config::types::StyleMode;
 use crate::core::render;
 use ratatui::{
+    Frame,
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem},
-    Frame,
 };
 
 pub fn render_colors(f: &mut Frame, area: Rect, selection: usize, theme: &UserTheme) {
@@ -170,7 +170,10 @@ pub fn render_icons(f: &mut Frame, area: Rect, selection: usize, theme: &UserThe
                     dest.icon = src.icon.clone();
                 }
             }
-            let mode = if matches!(ut.style.mode, StyleMode::Powerline | StyleMode::PlainPowerline) {
+            let mode = if matches!(
+                ut.style.mode,
+                StyleMode::Powerline | StyleMode::PlainPowerline
+            ) {
                 if let Some(pl) = crate::presets::color_schemes::find("Powerline Dark") {
                     pl.apply_to(&mut preview_theme.components);
                 }
@@ -275,9 +278,7 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     rect
 }
 
-fn load_user_theme_data(
-    user_themes: &[(String, std::path::PathBuf)],
-) -> Vec<UserTheme> {
+fn load_user_theme_data(user_themes: &[(String, std::path::PathBuf)]) -> Vec<UserTheme> {
     user_themes
         .iter()
         .filter_map(|(_, path)| manager::load_theme(path).ok())
@@ -290,16 +291,22 @@ pub fn filter_color_schemes(
 ) -> Vec<crate::presets::color_schemes::ColorScheme> {
     crate::presets::color_schemes::all()
         .into_iter()
-        .filter(|s| !user_theme_data.iter().any(|t| s.is_supplied_by(&t.components)))
+        .filter(|s| {
+            !user_theme_data
+                .iter()
+                .any(|t| s.is_supplied_by(&t.components))
+        })
         .collect()
 }
 
 /// Icon set presets not already supplied by any user theme.
-pub fn filter_icon_sets(
-    user_theme_data: &[UserTheme],
-) -> Vec<crate::presets::icon_sets::IconSet> {
+pub fn filter_icon_sets(user_theme_data: &[UserTheme]) -> Vec<crate::presets::icon_sets::IconSet> {
     crate::presets::icon_sets::all()
         .into_iter()
-        .filter(|s| !user_theme_data.iter().any(|t| s.is_supplied_by(&t.components)))
+        .filter(|s| {
+            !user_theme_data
+                .iter()
+                .any(|t| s.is_supplied_by(&t.components))
+        })
         .collect()
 }

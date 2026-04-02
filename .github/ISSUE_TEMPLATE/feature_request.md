@@ -1,20 +1,27 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
-assignees: ''
-
+about: Suggest an improvement to xline
+title: "[feature] "
+labels: ""
+assignees: ""
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## Summary
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+Describe the feature or improvement you want.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## Use case
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+What problem does this solve? How would you use it?
+
+## Proposed change
+
+Describe the behavior, UI, config, or workflow you want to add or change.
+
+## Alternatives considered
+
+Describe any alternatives or workarounds you considered.
+
+## Additional context
+
+Examples, mockups, screenshots, sample themes, or sample status line output are welcome.

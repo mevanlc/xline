@@ -1,12 +1,12 @@
 use crate::config::theme::UserTheme;
 use crate::core::render;
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols::border,
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 
 const MASCOT_COLOR: Color = Color::Rgb(215, 119, 87);
@@ -62,14 +62,19 @@ pub fn render(f: &mut Frame, area: Rect, theme: &UserTheme) {
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Length(23), // Left: mascot + info (aligns divider with panel border below)
-            Constraint::Min(1),    // Right: future content
+            Constraint::Min(1),     // Right: future content
         ])
         .split(inner);
 
     // --- Left column: welcome + mascot + info ---
     let left_content = Text::from(vec![
         Line::from(""),
-        Line::from(Span::styled("Welcome back!", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(
+            "Welcome back!",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        )),
         Line::from(""),
         Line::from(Span::styled(
             "\u{2590}\u{259b}\u{2588}\u{2588}\u{2588}\u{259c}\u{258c}",

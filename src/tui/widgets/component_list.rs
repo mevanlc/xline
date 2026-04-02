@@ -1,22 +1,16 @@
 use crate::config::theme::UserTheme;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem},
-    Frame,
 };
 
 pub struct ComponentListWidget;
 
 impl ComponentListWidget {
-    pub fn render(
-        f: &mut Frame,
-        area: Rect,
-        theme: &UserTheme,
-        selected: usize,
-        is_focused: bool,
-    ) {
+    pub fn render(f: &mut Frame, area: Rect, theme: &UserTheme, selected: usize, is_focused: bool) {
         let all_items: Vec<ListItem> = theme
             .components
             .iter()
@@ -64,14 +58,20 @@ impl ComponentListWidget {
             let mut visible_items: Vec<ListItem> = Vec::new();
             visible_items.push(ListItem::new(Line::from(Span::styled(
                 " \u{2bac}",
-                if has_above { arrow_active } else { arrow_inactive },
+                if has_above {
+                    arrow_active
+                } else {
+                    arrow_inactive
+                },
             ))));
-            visible_items.extend(
-                all_items.into_iter().skip(offset).take(visible),
-            );
+            visible_items.extend(all_items.into_iter().skip(offset).take(visible));
             visible_items.push(ListItem::new(Line::from(Span::styled(
                 " \u{2bae}",
-                if has_below { arrow_active } else { arrow_inactive },
+                if has_below {
+                    arrow_active
+                } else {
+                    arrow_inactive
+                },
             ))));
             visible_items
         };

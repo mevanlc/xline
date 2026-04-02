@@ -1,11 +1,11 @@
 use crate::config::theme::UserTheme;
 use crate::core::render;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Style},
     text::Line,
     widgets::{Block, BorderType, Borders, Paragraph},
-    Frame,
 };
 
 pub struct PreviewWidget;

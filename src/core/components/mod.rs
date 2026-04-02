@@ -7,8 +7,8 @@ pub mod output_style;
 pub mod session;
 pub mod usage;
 
-use crate::core::input::InputData;
 use crate::config::types::ComponentId;
+use crate::core::input::InputData;
 use std::collections::HashMap;
 
 pub trait Component {

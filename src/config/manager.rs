@@ -38,15 +38,69 @@ pub fn write_default_themes(dir: &Path, force: bool) -> std::io::Result<usize> {
     }
 
     let specs = [
-        Spec { name: "Default",         colors: "Default",         icons: "Emoji",     mode: StyleMode::Plain,     active: true },
-        Spec { name: "Cometix",         colors: "Cometix",         icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
-        Spec { name: "Minimal",         colors: "Minimal",         icons: "Minimal",   mode: StyleMode::Plain,     active: false },
-        Spec { name: "Gruvbox",         colors: "Gruvbox",         icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
-        Spec { name: "Nord",            colors: "Nord",            icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
-        Spec { name: "Powerline Dark",  colors: "Powerline Dark",  icons: "Powerline", mode: StyleMode::Powerline, active: false },
-        Spec { name: "Powerline Light", colors: "Powerline Light", icons: "Powerline", mode: StyleMode::Powerline, active: false },
-        Spec { name: "Rose Pine",       colors: "Rose Pine",       icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
-        Spec { name: "Tokyo Night",     colors: "Tokyo Night",     icons: "Nerd Font", mode: StyleMode::NerdFont,  active: false },
+        Spec {
+            name: "Default",
+            colors: "Default",
+            icons: "Emoji",
+            mode: StyleMode::Plain,
+            active: true,
+        },
+        Spec {
+            name: "Cometix",
+            colors: "Cometix",
+            icons: "Nerd Font",
+            mode: StyleMode::NerdFont,
+            active: false,
+        },
+        Spec {
+            name: "Minimal",
+            colors: "Minimal",
+            icons: "Minimal",
+            mode: StyleMode::Plain,
+            active: false,
+        },
+        Spec {
+            name: "Gruvbox",
+            colors: "Gruvbox",
+            icons: "Nerd Font",
+            mode: StyleMode::NerdFont,
+            active: false,
+        },
+        Spec {
+            name: "Nord",
+            colors: "Nord",
+            icons: "Nerd Font",
+            mode: StyleMode::NerdFont,
+            active: false,
+        },
+        Spec {
+            name: "Powerline Dark",
+            colors: "Powerline Dark",
+            icons: "Powerline",
+            mode: StyleMode::Powerline,
+            active: false,
+        },
+        Spec {
+            name: "Powerline Light",
+            colors: "Powerline Light",
+            icons: "Powerline",
+            mode: StyleMode::Powerline,
+            active: false,
+        },
+        Spec {
+            name: "Rose Pine",
+            colors: "Rose Pine",
+            icons: "Nerd Font",
+            mode: StyleMode::NerdFont,
+            active: false,
+        },
+        Spec {
+            name: "Tokyo Night",
+            colors: "Tokyo Night",
+            icons: "Nerd Font",
+            mode: StyleMode::NerdFont,
+            active: false,
+        },
     ];
 
     let mut written = 0;
@@ -107,8 +161,8 @@ pub fn load_theme(path: &Path) -> Result<UserTheme, LoadError> {
 
 /// Save a theme to a .toml file.
 pub fn save_theme(path: &Path, theme: &UserTheme) -> std::io::Result<()> {
-    let content =
-        toml::to_string_pretty(theme).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    let content = toml::to_string_pretty(theme)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     fs::write(path, content)
 }
 
@@ -226,7 +280,10 @@ pub fn duplicate_theme(src_path: &Path, new_name: &str) -> Result<PathBuf, Renam
 
     let mut theme = load_theme(src_path).map_err(|e| match e {
         LoadError::Io(io) => RenameError::Io(io),
-        other => RenameError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", other))),
+        other => RenameError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("{}", other),
+        )),
     })?;
     theme.active = false; // duplicate is not active by default
     save_theme(&new_path, &theme).map_err(RenameError::Io)?;
@@ -246,7 +303,10 @@ pub fn is_valid_theme_name(name: &str) -> bool {
 
     // No characters forbidden on Windows
     const FORBIDDEN: &[char] = &['<', '>', ':', '"', '|', '?', '*'];
-    if name.chars().any(|c| FORBIDDEN.contains(&c) || c.is_control()) {
+    if name
+        .chars()
+        .any(|c| FORBIDDEN.contains(&c) || c.is_control())
+    {
         return false;
     }
 
@@ -259,9 +319,8 @@ pub fn is_valid_theme_name(name: &str) -> bool {
     // No reserved Windows names
     let upper = name.to_uppercase();
     const RESERVED: &[&str] = &[
-        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
-        "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8",
-        "LPT9",
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     ];
     if RESERVED.contains(&upper.as_str()) {
         return false;

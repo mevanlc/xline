@@ -41,7 +41,11 @@ impl Component for ContextWindowComponent {
                 };
                 let tok = if tokens >= 1000 {
                     let k = tokens as f64 / 1000.0;
-                    if k.fract() == 0.0 { format!("{}k", k as u32) } else { format!("{:.1}k", k) }
+                    if k.fract() == 0.0 {
+                        format!("{}k", k as u32)
+                    } else {
+                        format!("{:.1}k", k)
+                    }
                 } else {
                     tokens.to_string()
                 };
@@ -92,7 +96,10 @@ fn parse_transcript_usage(transcript_path: &str) -> Option<u32> {
 fn try_parse_transcript_file(path: &Path) -> Option<u32> {
     let file = fs::File::open(path).ok()?;
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>().unwrap_or_default();
+    let lines: Vec<String> = reader
+        .lines()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap_or_default();
 
     if lines.is_empty() {
         return None;
@@ -145,7 +152,10 @@ fn find_usage_by_leaf_uuid(leaf_uuid: &str, project_dir: &Path) -> Option<u32> {
 fn search_uuid_in_file(path: &Path, target_uuid: &str) -> Option<u32> {
     let file = fs::File::open(path).ok()?;
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>().unwrap_or_default();
+    let lines: Vec<String> = reader
+        .lines()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap_or_default();
 
     for line in &lines {
         let line = line.trim();

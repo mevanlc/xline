@@ -189,18 +189,15 @@ pub const FILE_MENU_ITEMS: &[(&str, char)] = &[
 impl App {
     pub fn new(name: String, path: PathBuf, theme: UserTheme) -> Self {
         let theme_list = manager::list_themes().unwrap_or_default();
-        let theme_list_index = theme_list
-            .iter()
-            .position(|(n, _)| n == &name)
-            .unwrap_or(0);
+        let theme_list_index = theme_list.iter().position(|(n, _)| n == &name).unwrap_or(0);
         let active_name = if theme.active {
             Some(name.clone())
         } else {
             // Find which theme is actually active
             theme_list.iter().find_map(|(n, p)| {
-                manager::load_theme(p).ok().and_then(|t| {
-                    if t.active { Some(n.clone()) } else { None }
-                })
+                manager::load_theme(p)
+                    .ok()
+                    .and_then(|t| if t.active { Some(n.clone()) } else { None })
             })
         };
 
@@ -246,7 +243,8 @@ impl App {
 
     pub fn refresh_theme_list(&mut self) {
         self.theme_list = manager::list_themes().unwrap_or_default();
-        self.theme_list_index = self.theme_list
+        self.theme_list_index = self
+            .theme_list
             .iter()
             .position(|(n, _)| n == &self.theme_name)
             .unwrap_or(0);
@@ -315,7 +313,8 @@ impl App {
         match code {
             KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => {
                 self.file_menu_open = true;
-                self.file_menu_selection.set(&FileMenuAction::SaveActivateExit);
+                self.file_menu_selection
+                    .set(&FileMenuAction::SaveActivateExit);
             }
             KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => {
                 if self.is_dirty {
@@ -337,10 +336,15 @@ impl App {
             }
             KeyCode::Esc => {
                 self.file_menu_open = true;
-                self.file_menu_selection.set(&FileMenuAction::SaveActivateExit);
+                self.file_menu_selection
+                    .set(&FileMenuAction::SaveActivateExit);
             }
-            KeyCode::Tab => { self.selected_panel.move_next(); }
-            KeyCode::BackTab => { self.selected_panel.move_prev(); }
+            KeyCode::Tab => {
+                self.selected_panel.move_next();
+            }
+            KeyCode::BackTab => {
+                self.selected_panel.move_prev();
+            }
             KeyCode::Up => {
                 if modifiers.contains(KeyModifiers::SHIFT) {
                     self.move_component_up();
@@ -396,8 +400,7 @@ impl App {
                         .iter()
                         .position(|f| *f == self.selected_field)
                         .unwrap_or(0) as i32;
-                    let new_idx =
-                        (current + delta).clamp(0, fields.len() as i32 - 1) as usize;
+                    let new_idx = (current + delta).clamp(0, fields.len() as i32 - 1) as usize;
                     self.selected_field = fields[new_idx];
                 }
             }
@@ -750,7 +753,8 @@ impl App {
                                         self.theme = theme;
                                         self.is_dirty = false;
                                     }
-                                    self.status_message = Some("Theme deleted, loaded Default".into());
+                                    self.status_message =
+                                        Some("Theme deleted, loaded Default".into());
                                 }
                             }
                         }
@@ -823,8 +827,7 @@ impl App {
                                     dest.styles = src_comp.styles.clone();
                                 }
                             }
-                            self.status_message =
-                                Some(format!("Imported colors from {}", name));
+                            self.status_message = Some(format!("Imported colors from {}", name));
                             self.mark_dirty();
                         }
                     }
@@ -883,8 +886,7 @@ impl App {
                                     dest.icon = src_comp.icon.clone();
                                 }
                             }
-                            self.status_message =
-                                Some(format!("Imported icons from {}", name));
+                            self.status_message = Some(format!("Imported icons from {}", name));
                             self.mark_dirty();
                         }
                     }
@@ -919,8 +921,7 @@ impl App {
                     if self.is_dirty {
                         // Store which theme to open, then ask to discard
                         self.confirm_dialog_open = true;
-                        self.confirm_dialog_message =
-                            format!("Discard changes and open {}?", name);
+                        self.confirm_dialog_message = format!("Discard changes and open {}?", name);
                         self.confirm_dialog_action = ConfirmAction::DiscardAndOpen;
                         // Stash the target in name_input_buffer temporarily
                         self.name_input_buffer = format!("{}\0{}", name, path.display());
@@ -981,12 +982,18 @@ impl App {
             };
             self.color_picker = match current_color {
                 Some(AnsiColor::Color16 { c16 }) => {
-                    let mut state = ColorPickerState { c16_selection: *c16, ..Default::default() };
+                    let mut state = ColorPickerState {
+                        c16_selection: *c16,
+                        ..Default::default()
+                    };
                     state.mode.set(&ColorPickerMode::Color16);
                     state
                 }
                 Some(AnsiColor::Color256 { c256 }) => {
-                    let mut state = ColorPickerState { c256_selection: *c256, ..Default::default() };
+                    let mut state = ColorPickerState {
+                        c256_selection: *c256,
+                        ..Default::default()
+                    };
                     state.mode.set(&ColorPickerMode::Color256);
                     state
                 }
@@ -1012,8 +1019,12 @@ impl App {
             return;
         }
         match code {
-            KeyCode::Tab => { self.color_picker.mode.move_next(); }
-            KeyCode::BackTab => { self.color_picker.mode.move_prev(); }
+            KeyCode::Tab => {
+                self.color_picker.mode.move_next();
+            }
+            KeyCode::BackTab => {
+                self.color_picker.mode.move_prev();
+            }
             KeyCode::Up => match *self.color_picker.mode.current() {
                 ColorPickerMode::Color16 => {
                     let sel = self.color_picker.c16_selection;
@@ -1073,7 +1084,9 @@ impl App {
                 }
                 _ => {}
             },
-            KeyCode::Char(c) if c.is_ascii_digit() && self.color_picker.mode == ColorPickerMode::Rgb => {
+            KeyCode::Char(c)
+                if c.is_ascii_digit() && self.color_picker.mode == ColorPickerMode::Rgb =>
+            {
                 let field = match self.color_picker.rgb_focus {
                     0 => &mut self.color_picker.rgb_r,
                     1 => &mut self.color_picker.rgb_g,
@@ -1107,12 +1120,12 @@ impl App {
             }
             KeyCode::Enter => {
                 let color = match *self.color_picker.mode.current() {
-                    ColorPickerMode::Color16 => {
-                        AnsiColor::Color16 { c16: self.color_picker.c16_selection }
-                    }
-                    ColorPickerMode::Color256 => {
-                        AnsiColor::Color256 { c256: self.color_picker.c256_selection }
-                    }
+                    ColorPickerMode::Color16 => AnsiColor::Color16 {
+                        c16: self.color_picker.c16_selection,
+                    },
+                    ColorPickerMode::Color256 => AnsiColor::Color256 {
+                        c256: self.color_picker.c256_selection,
+                    },
                     ColorPickerMode::Rgb => {
                         let r = self.color_picker.rgb_r.parse().unwrap_or(128);
                         let g = self.color_picker.rgb_g.parse().unwrap_or(128);
@@ -1149,15 +1162,21 @@ impl App {
             match purpose {
                 IconPickerPurpose::PlainIcon => comp.icon.plain.clone(),
                 IconPickerPurpose::NerdFontIcon => comp.icon.nerd_font.clone(),
-                IconPickerPurpose::OpusIcon => {
-                    comp.icon.per_model.as_ref().map_or(String::new(), |p| p.opus.clone())
-                }
-                IconPickerPurpose::SonnetIcon => {
-                    comp.icon.per_model.as_ref().map_or(String::new(), |p| p.sonnet.clone())
-                }
-                IconPickerPurpose::HaikuIcon => {
-                    comp.icon.per_model.as_ref().map_or(String::new(), |p| p.haiku.clone())
-                }
+                IconPickerPurpose::OpusIcon => comp
+                    .icon
+                    .per_model
+                    .as_ref()
+                    .map_or(String::new(), |p| p.opus.clone()),
+                IconPickerPurpose::SonnetIcon => comp
+                    .icon
+                    .per_model
+                    .as_ref()
+                    .map_or(String::new(), |p| p.sonnet.clone()),
+                IconPickerPurpose::HaikuIcon => comp
+                    .icon
+                    .per_model
+                    .as_ref()
+                    .map_or(String::new(), |p| p.haiku.clone()),
             }
         } else {
             String::new()
@@ -1275,7 +1294,9 @@ impl App {
 
     fn icon_picker_selectable_count(&self) -> usize {
         let tab = *self.icon_picker.tab.current();
-        let sections = self.icon_catalog.sections(tab, &self.icon_picker.search_query);
+        let sections = self
+            .icon_catalog
+            .sections(tab, &self.icon_picker.search_query);
         let flat = super::widgets::icon_picker::flatten_sections(&sections);
         super::widgets::icon_picker::selectable_count(&flat)
     }
@@ -1288,7 +1309,9 @@ impl App {
     fn adjust_icon_picker_scroll(&mut self) {
         let visible = self.icon_picker_visible_height();
         let tab = *self.icon_picker.tab.current();
-        let sections = self.icon_catalog.sections(tab, &self.icon_picker.search_query);
+        let sections = self
+            .icon_catalog
+            .sections(tab, &self.icon_picker.search_query);
         let flat = super::widgets::icon_picker::flatten_sections(&sections);
 
         // Find the flat-list index of the selected item
@@ -1318,7 +1341,9 @@ impl App {
             self.icon_picker.custom_buffer.clone()
         } else {
             let tab = *self.icon_picker.tab.current();
-            let sections = self.icon_catalog.sections(tab, &self.icon_picker.search_query);
+            let sections = self
+                .icon_catalog
+                .sections(tab, &self.icon_picker.search_query);
             let flat = super::widgets::icon_picker::flatten_sections(&sections);
 
             // Find the icon at selected_index
@@ -1398,7 +1423,7 @@ impl App {
                 Constraint::Length(preview_height), // Preview / Banner
                 Constraint::Length(spacer_height),  // Spacer
                 Constraint::Length(3),              // Themes bar
-                Constraint::Min(3),                // Main content (scrollable)
+                Constraint::Min(3),                 // Main content (scrollable)
                 Constraint::Length(3),              // Keymap
             ])
             .split(f.area());
@@ -1422,10 +1447,7 @@ impl App {
         // Main content: two columns
         let content = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(24),
-                Constraint::Min(30),
-            ])
+            .constraints([Constraint::Length(24), Constraint::Min(30)])
             .split(layout[3]);
 
         ComponentListWidget::render(
@@ -1453,10 +1475,20 @@ impl App {
             super::widgets::file_menu::render(f, f.area(), self.file_menu_selection.index());
         }
         if self.import_colors_open {
-            super::widgets::import_menu::render_colors(f, f.area(), self.import_colors_selection, &self.theme);
+            super::widgets::import_menu::render_colors(
+                f,
+                f.area(),
+                self.import_colors_selection,
+                &self.theme,
+            );
         }
         if self.import_icons_open {
-            super::widgets::import_menu::render_icons(f, f.area(), self.import_icons_selection, &self.theme);
+            super::widgets::import_menu::render_icons(
+                f,
+                f.area(),
+                self.import_icons_selection,
+                &self.theme,
+            );
         }
         if self.open_menu_open {
             super::widgets::open_menu::render(

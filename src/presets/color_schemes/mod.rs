@@ -42,11 +42,17 @@ impl ColorScheme {
 
     /// Get colors for a specific component.
     pub fn get(&self, id: ComponentId) -> Option<&ComponentColors> {
-        self.entries.iter().find(|(cid, _)| *cid == id).map(|(_, c)| c)
+        self.entries
+            .iter()
+            .find(|(cid, _)| *cid == id)
+            .map(|(_, c)| c)
     }
 
     /// Whether any single theme's components supply all of this scheme's colors.
-    pub fn is_supplied_by(&self, theme_components: &[crate::config::types::ComponentConfig]) -> bool {
+    pub fn is_supplied_by(
+        &self,
+        theme_components: &[crate::config::types::ComponentConfig],
+    ) -> bool {
         self.entries.iter().all(|(id, colors)| {
             theme_components
                 .iter()
@@ -66,10 +72,7 @@ impl ColorScheme {
     }
 
     /// Apply this color scheme to a theme's components (mutates in place).
-    pub fn apply_to(
-        &self,
-        components: &mut [crate::config::types::ComponentConfig],
-    ) {
+    pub fn apply_to(&self, components: &mut [crate::config::types::ComponentConfig]) {
         for comp in components.iter_mut() {
             if let Some(colors) = self.get(comp.id) {
                 comp.colors.icon = colors.icon.clone();
@@ -100,5 +103,7 @@ pub fn all() -> Vec<ColorScheme> {
 
 /// Find a color scheme by name (case-insensitive).
 pub fn find(name: &str) -> Option<ColorScheme> {
-    all().into_iter().find(|s| s.name.eq_ignore_ascii_case(name))
+    all()
+        .into_iter()
+        .find(|s| s.name.eq_ignore_ascii_case(name))
 }

@@ -16,11 +16,8 @@ impl<'a> StatusLineGenerator<'a> {
         let (texts, dynamic_icons) = render::texts_and_icons_from_data(&components);
 
         // Build the render line, then patch in any dynamic icon overrides
-        let mut line = render::build_render_line(
-            &self.theme.components,
-            self.theme.style.mode,
-            &texts,
-        );
+        let mut line =
+            render::build_render_line(&self.theme.components, self.theme.style.mode, &texts);
 
         // Apply dynamic icon overrides (e.g. from component metadata)
         if !dynamic_icons.is_empty() {

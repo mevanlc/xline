@@ -131,7 +131,11 @@ impl RawUsage {
             .cache_read_input_tokens
             .or(self.cache_read_prompt_tokens)
             .or(self.cached_tokens)
-            .or_else(|| self.prompt_tokens_details.as_ref().and_then(|d| d.cached_tokens))
+            .or_else(|| {
+                self.prompt_tokens_details
+                    .as_ref()
+                    .and_then(|d| d.cached_tokens)
+            })
             .unwrap_or(0);
 
         let total_value = if total > 0 {

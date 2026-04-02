@@ -1,11 +1,11 @@
 use crate::data::icon_catalog::{IconCatalogData, IconPickerTab, IconSection};
 use crate::tui::app::IconPickerState;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph},
-    Frame,
 };
 
 /// Items in the flattened icon list — either a section header or a selectable icon.
@@ -72,7 +72,7 @@ pub fn render(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &Icon
         .constraints([
             Constraint::Length(3), // Icon Set tabs
             Constraint::Length(3), // Search / Input
-            Constraint::Min(3),   // Icons list (or empty for Custom)
+            Constraint::Min(3),    // Icons list (or empty for Custom)
             Constraint::Length(3), // Keymap
         ])
         .split(inner);
@@ -100,11 +100,15 @@ pub fn render(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &Icon
     }
 
     // --- Keymap ---
-    render_keymap(f, layout[3], &[
-        ("\u{2190}\u{2191}\u{2193}\u{2192}", "Navigate"),
-        ("Enter", "Select"),
-        ("Esc", "Cancel"),
-    ]);
+    render_keymap(
+        f,
+        layout[3],
+        &[
+            ("\u{2190}\u{2191}\u{2193}\u{2192}", "Navigate"),
+            ("Enter", "Select"),
+            ("Esc", "Cancel"),
+        ],
+    );
 }
 
 fn render_tabs(f: &mut Frame, area: Rect, state: &IconPickerState) {
@@ -130,10 +134,7 @@ fn render_tabs(f: &mut Frame, area: Rect, state: &IconPickerState) {
         } else {
             Style::default().fg(Color::Indexed(245))
         };
-        spans.push(Span::styled(
-            format!("[{}] {}", indicator, label),
-            style,
-        ));
+        spans.push(Span::styled(format!("[{}] {}", indicator, label), style));
     }
 
     let block = Block::default()
@@ -159,10 +160,7 @@ fn render_search(f: &mut Frame, area: Rect, state: &IconPickerState) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Blue))
-        .title(Span::styled(
-            " Search ",
-            Style::default().fg(Color::Yellow),
-        ));
+        .title(Span::styled(" Search ", Style::default().fg(Color::Yellow)));
 
     let para = Paragraph::new(text).block(block);
     f.render_widget(para, area);
@@ -180,21 +178,13 @@ fn render_custom_input(f: &mut Frame, area: Rect, state: &IconPickerState) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Blue))
-        .title(Span::styled(
-            " Input ",
-            Style::default().fg(Color::Yellow),
-        ));
+        .title(Span::styled(" Input ", Style::default().fg(Color::Yellow)));
 
     let para = Paragraph::new(text).block(block);
     f.render_widget(para, area);
 }
 
-fn render_icon_list(
-    f: &mut Frame,
-    area: Rect,
-    state: &IconPickerState,
-    catalog: &IconCatalogData,
-) {
+fn render_icon_list(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &IconCatalogData) {
     let tab = *state.tab.current();
     let sections = catalog.sections(tab, &state.search_query);
     let flat = flatten_sections(&sections);
@@ -229,10 +219,7 @@ fn render_icon_list(
                         format!("{}\u{2500}{} ", dashes, dashes),
                         Style::default().fg(Color::Indexed(240)),
                     ),
-                    Span::styled(
-                        title.clone(),
-                        Style::default().fg(Color::Indexed(245)),
-                    ),
+                    Span::styled(title.clone(), Style::default().fg(Color::Indexed(245))),
                     Span::styled(
                         format!(" {}", dashes),
                         Style::default().fg(Color::Indexed(240)),
@@ -243,10 +230,7 @@ fn render_icon_list(
                 let is_selected = i == selected_flat;
                 if is_selected {
                     lines.push(Line::from(vec![
-                        Span::styled(
-                            format!(" {} ", icon),
-                            Style::default().fg(Color::White),
-                        ),
+                        Span::styled(format!(" {} ", icon), Style::default().fg(Color::White)),
                         Span::styled(
                             name.clone(),
                             Style::default()
@@ -256,19 +240,18 @@ fn render_icon_list(
                         ),
                         // Fill remaining width with selection background
                         Span::styled(
-                            " ".repeat(inner.width.saturating_sub(
-                                (icon.chars().count() + name.len() + 3) as u16,
-                            )
-                                as usize),
+                            " ".repeat(
+                                inner
+                                    .width
+                                    .saturating_sub((icon.chars().count() + name.len() + 3) as u16)
+                                    as usize,
+                            ),
                             Style::default().bg(Color::Indexed(238)),
                         ),
                     ]));
                 } else {
                     lines.push(Line::from(vec![
-                        Span::styled(
-                            format!(" {} ", icon),
-                            Style::default().fg(Color::White),
-                        ),
+                        Span::styled(format!(" {} ", icon), Style::default().fg(Color::White)),
                         Span::styled(name.clone(), Style::default().fg(Color::Indexed(250))),
                     ]));
                 }

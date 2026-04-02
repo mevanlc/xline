@@ -123,7 +123,11 @@ impl Component for GitComponent {
         let status = Self::get_status(dir);
         let ahead = Self::get_commit_count(dir, "@{u}..HEAD");
         let behind = Self::get_commit_count(dir, "HEAD..@{u}");
-        let sha = if self.show_sha { Self::get_sha(dir) } else { None };
+        let sha = if self.show_sha {
+            Self::get_sha(dir)
+        } else {
+            None
+        };
 
         let mut metadata = HashMap::new();
         metadata.insert("branch".into(), branch.clone());

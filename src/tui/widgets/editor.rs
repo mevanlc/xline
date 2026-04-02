@@ -2,11 +2,11 @@ use crate::config::theme::UserTheme;
 use crate::config::types::{AnsiColor, ComponentId};
 use crate::core::render;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem},
-    Frame,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,11 +31,7 @@ impl FieldSelection {
         let mut fields = vec![Self::Enabled, Self::StyleMode];
 
         if comp.id == ComponentId::Model {
-            let pm_enabled = comp
-                .icon
-                .per_model
-                .as_ref()
-                .is_some_and(|pm| pm.enabled);
+            let pm_enabled = comp.icon.per_model.as_ref().is_some_and(|pm| pm.enabled);
             if pm_enabled {
                 fields.push(Self::PerModelIcons);
                 fields.push(Self::OpusIcon);
@@ -51,7 +47,12 @@ impl FieldSelection {
             fields.push(Self::NerdFontIcon);
         }
 
-        fields.extend([Self::IconColor, Self::TextColor, Self::BackgroundColor, Self::Bold]);
+        fields.extend([
+            Self::IconColor,
+            Self::TextColor,
+            Self::BackgroundColor,
+            Self::Bold,
+        ]);
         fields
     }
 
@@ -98,25 +99,64 @@ impl EditorWidget {
         let field_data: Vec<(&str, String, Option<Color>)> = visible_fields
             .iter()
             .map(|f| match f {
-                FieldSelection::Enabled => ("Enabled", if comp.enabled { "Yes" } else { "No" }.into(), None),
-                FieldSelection::StyleMode => ("Style Mode", theme.style.mode.display_name().into(), None),
+                FieldSelection::Enabled => (
+                    "Enabled",
+                    if comp.enabled { "Yes" } else { "No" }.into(),
+                    None,
+                ),
+                FieldSelection::StyleMode => {
+                    ("Style Mode", theme.style.mode.display_name().into(), None)
+                }
                 FieldSelection::PlainIcon => ("Plain Icon", comp.icon.plain.clone(), None),
                 FieldSelection::NerdFontIcon => ("Nerd Icon", comp.icon.nerd_font.clone(), None),
                 FieldSelection::PerModelIcons => {
                     let enabled = pm.is_some_and(|p| p.enabled);
                     ("Per-Model", if enabled { "Yes" } else { "No" }.into(), None)
                 }
-                FieldSelection::OpusIcon => ("Opus Icon", pm.map_or(String::new(), |p| p.opus.clone()), None),
-                FieldSelection::SonnetIcon => ("Sonnet Icon", pm.map_or(String::new(), |p| p.sonnet.clone()), None),
-                FieldSelection::HaikuIcon => ("Haiku Icon", pm.map_or(String::new(), |p| p.haiku.clone()), None),
-                FieldSelection::IconColor => ("Icon Color", format_color(comp.colors.icon.as_ref()), swatch_color(comp.colors.icon.as_ref())),
-                FieldSelection::TextColor => ("Text Color", format_color(comp.colors.text.as_ref()), swatch_color(comp.colors.text.as_ref())),
-                FieldSelection::BackgroundColor => ("Bg Color", format_color(comp.colors.background.as_ref()), swatch_color(comp.colors.background.as_ref())),
-                FieldSelection::Bold => ("Bold", if comp.styles.text_bold { "Yes" } else { "No" }.into(), None),
+                FieldSelection::OpusIcon => (
+                    "Opus Icon",
+                    pm.map_or(String::new(), |p| p.opus.clone()),
+                    None,
+                ),
+                FieldSelection::SonnetIcon => (
+                    "Sonnet Icon",
+                    pm.map_or(String::new(), |p| p.sonnet.clone()),
+                    None,
+                ),
+                FieldSelection::HaikuIcon => (
+                    "Haiku Icon",
+                    pm.map_or(String::new(), |p| p.haiku.clone()),
+                    None,
+                ),
+                FieldSelection::IconColor => (
+                    "Icon Color",
+                    format_color(comp.colors.icon.as_ref()),
+                    swatch_color(comp.colors.icon.as_ref()),
+                ),
+                FieldSelection::TextColor => (
+                    "Text Color",
+                    format_color(comp.colors.text.as_ref()),
+                    swatch_color(comp.colors.text.as_ref()),
+                ),
+                FieldSelection::BackgroundColor => (
+                    "Bg Color",
+                    format_color(comp.colors.background.as_ref()),
+                    swatch_color(comp.colors.background.as_ref()),
+                ),
+                FieldSelection::Bold => (
+                    "Bold",
+                    if comp.styles.text_bold { "Yes" } else { "No" }.into(),
+                    None,
+                ),
             })
             .collect();
 
-        let label_col_width = field_data.iter().map(|(l, _, _)| l.len()).max().unwrap_or(0) + 1;
+        let label_col_width = field_data
+            .iter()
+            .map(|(l, _, _)| l.len())
+            .max()
+            .unwrap_or(0)
+            + 1;
 
         let all_items: Vec<ListItem> = field_data
             .iter()
@@ -138,7 +178,11 @@ impl EditorWidget {
                 let mut spans = vec![
                     Span::styled(cursor, style),
                     Span::styled(
-                        format!("{:<width$} ", format!("{}:", label), width = label_col_width),
+                        format!(
+                            "{:<width$} ",
+                            format!("{}:", label),
+                            width = label_col_width
+                        ),
                         style,
                     ),
                     Span::styled(value.clone(), Style::default().fg(Color::White)),
@@ -146,7 +190,10 @@ impl EditorWidget {
 
                 if let Some(color) = swatch {
                     spans.push(Span::raw(" "));
-                    spans.push(Span::styled("\u{2588}\u{2588}", Style::default().fg(*color)));
+                    spans.push(Span::styled(
+                        "\u{2588}\u{2588}",
+                        Style::default().fg(*color),
+                    ));
                 }
 
                 ListItem::new(Line::from(spans))
@@ -178,14 +225,20 @@ impl EditorWidget {
             let mut visible_items: Vec<ListItem> = Vec::new();
             visible_items.push(ListItem::new(Line::from(Span::styled(
                 " \u{2bac}",
-                if has_above { arrow_active } else { arrow_inactive },
+                if has_above {
+                    arrow_active
+                } else {
+                    arrow_inactive
+                },
             ))));
-            visible_items.extend(
-                all_items.into_iter().skip(offset).take(visible),
-            );
+            visible_items.extend(all_items.into_iter().skip(offset).take(visible));
             visible_items.push(ListItem::new(Line::from(Span::styled(
                 " \u{2bae}",
-                if has_below { arrow_active } else { arrow_inactive },
+                if has_below {
+                    arrow_active
+                } else {
+                    arrow_inactive
+                },
             ))));
             visible_items
         };
@@ -197,10 +250,7 @@ impl EditorWidget {
         };
 
         let title = Line::from(vec![
-            Span::styled(
-                format!(" {} ", comp.id.display_name()),
-                border_style,
-            ),
+            Span::styled(format!(" {} ", comp.id.display_name()), border_style),
             Span::styled(
                 format!("- {} ", comp.id.description()),
                 Style::default().fg(Color::DarkGray),

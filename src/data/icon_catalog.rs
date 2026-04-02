@@ -25,22 +25,38 @@ pub struct IconCatalogData {
 
 /// Common emoji for the "Common" section — curated for statusline use.
 const COMMON_EMOJI: &[&str] = &[
-    "🌱", "🔧", "⚡", "⭐", "✨", "🔥", "💎", "🤖", "🎯", "🚀",
-    "📁", "🌿", "📊", "💰", "⏱\u{fe0f}", "🎨", "💡", "🔒",
+    "🌱",
+    "🔧",
+    "⚡",
+    "⭐",
+    "✨",
+    "🔥",
+    "💎",
+    "🤖",
+    "🎯",
+    "🚀",
+    "📁",
+    "🌿",
+    "📊",
+    "💰",
+    "⏱\u{fe0f}",
+    "🎨",
+    "💡",
+    "🔒",
 ];
 
 /// Common nerd font glyph name prefixes to match.
 const COMMON_NERD_NAMES: &[&str] = &[
-    "cod hubot",         // robot
-    "md folder",         // folder
-    "md git",            // git
-    "oct zap",           // zap/lightning
-    "md chart bar",      // chart
-    "cod credit card",   // cost
-    "md timer",          // timer
-    "md target",         // target
-    "md rocket launch",  // rocket
-    "seti code",         // code
+    "cod hubot",        // robot
+    "md folder",        // folder
+    "md git",           // git
+    "oct zap",          // zap/lightning
+    "md chart bar",     // chart
+    "cod credit card",  // cost
+    "md timer",         // timer
+    "md target",        // target
+    "md rocket launch", // rocket
+    "seti code",        // code
 ];
 
 /// Common Unicode symbols for statusline use.
@@ -264,15 +280,27 @@ mod tests {
 
         let emoji = catalog.sections(IconPickerTab::Emoji, "");
         let emoji_total: usize = emoji.iter().map(|s| s.entries.len()).sum();
-        assert!(emoji_total > 1000, "expected >1000 emoji, got {}", emoji_total);
+        assert!(
+            emoji_total > 1000,
+            "expected >1000 emoji, got {}",
+            emoji_total
+        );
 
         let nerd = catalog.sections(IconPickerTab::NerdFont, "");
         let nerd_total: usize = nerd.iter().map(|s| s.entries.len()).sum();
-        assert!(nerd_total > 5000, "expected >5000 nerd font glyphs, got {}", nerd_total);
+        assert!(
+            nerd_total > 5000,
+            "expected >5000 nerd font glyphs, got {}",
+            nerd_total
+        );
 
         let uni = catalog.sections(IconPickerTab::Unicode, "");
         let uni_total: usize = uni.iter().map(|s| s.entries.len()).sum();
-        assert!(uni_total > 10000, "expected >10000 unicode chars, got {}", uni_total);
+        assert!(
+            uni_total > 10000,
+            "expected >10000 unicode chars, got {}",
+            uni_total
+        );
     }
 
     #[test]
@@ -281,6 +309,10 @@ mod tests {
         let sections = catalog.sections(IconPickerTab::Emoji, "rocket");
         let total: usize = sections.iter().map(|s| s.entries.len()).sum();
         assert!(total >= 1, "expected at least 1 result for 'rocket'");
-        assert!(total < 50, "expected <50 results for 'rocket', got {}", total);
+        assert!(
+            total < 50,
+            "expected <50 results for 'rocket', got {}",
+            total
+        );
     }
 }

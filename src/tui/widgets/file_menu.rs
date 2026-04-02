@@ -1,10 +1,10 @@
 use crate::tui::app::FILE_MENU_ITEMS;
 use ratatui::{
+    Frame,
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem},
-    Frame,
 };
 
 pub fn render(f: &mut Frame, area: Rect, selection: usize) {
@@ -52,14 +52,20 @@ fn mnemonic_line(
     selected: bool,
 ) -> Vec<Span<'static>> {
     let mnemonic_lower = mnemonic.to_ascii_lowercase();
-    let base_color = if selected { Color::Yellow } else { Color::White };
+    let base_color = if selected {
+        Color::Yellow
+    } else {
+        Color::White
+    };
     let mnemonic_style = Style::default()
-        .fg(if selected { Color::Cyan } else { Color::LightCyan })
+        .fg(if selected {
+            Color::Cyan
+        } else {
+            Color::LightCyan
+        })
         .add_modifier(Modifier::BOLD);
     let label_style = if selected {
-        Style::default()
-            .fg(base_color)
-            .add_modifier(Modifier::BOLD)
+        Style::default().fg(base_color).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(base_color)
     };

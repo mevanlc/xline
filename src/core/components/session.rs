@@ -19,11 +19,19 @@ impl SessionComponent {
         } else if ms < 3_600_000 {
             let m = ms / 60_000;
             let s = (ms % 60_000) / 1000;
-            if s == 0 { format!("{}m", m) } else { format!("{}m{}s", m, s) }
+            if s == 0 {
+                format!("{}m", m)
+            } else {
+                format!("{}m{}s", m, s)
+            }
         } else {
             let h = ms / 3_600_000;
             let m = (ms % 3_600_000) / 60_000;
-            if m == 0 { format!("{}h", h) } else { format!("{}h{}m", h, m) }
+            if m == 0 {
+                format!("{}h", h)
+            } else {
+                format!("{}h{}m", h, m)
+            }
         }
     }
 }

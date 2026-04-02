@@ -1,10 +1,10 @@
 use crate::tui::app::{ColorPickerMode, ColorPickerState};
 use ratatui::{
+    Frame,
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem},
-    Frame,
 };
 
 pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
@@ -51,13 +51,22 @@ pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
                 let color_l = c16_to_color(left);
                 spans.push(Span::styled(
                     cursor_l,
-                    if is_sel_l { Style::default().fg(Color::Yellow) } else { Style::default() },
+                    if is_sel_l {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    },
                 ));
-                spans.push(Span::styled("\u{2588}\u{2588}", Style::default().fg(color_l)));
+                spans.push(Span::styled(
+                    "\u{2588}\u{2588}",
+                    Style::default().fg(color_l),
+                ));
                 spans.push(Span::styled(
                     format!(" {:3}", left),
                     if is_sel_l {
-                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD)
                     } else {
                         Style::default().fg(Color::White)
                     },
@@ -72,13 +81,22 @@ pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
                 let color_r = c16_to_color(right);
                 spans.push(Span::styled(
                     cursor_r,
-                    if is_sel_r { Style::default().fg(Color::Yellow) } else { Style::default() },
+                    if is_sel_r {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    },
                 ));
-                spans.push(Span::styled("\u{2588}\u{2588}", Style::default().fg(color_r)));
+                spans.push(Span::styled(
+                    "\u{2588}\u{2588}",
+                    Style::default().fg(color_r),
+                ));
                 spans.push(Span::styled(
                     format!(" {:3}", right),
                     if is_sel_r {
-                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD)
                     } else {
                         Style::default().fg(Color::White)
                     },
@@ -89,7 +107,10 @@ pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
         }
         ColorPickerMode::Color256 => {
             items.push(ListItem::new(Line::from(Span::styled(
-                format!("Selected: {} [\u{2190}\u{2191}\u{2193}\u{2192} navigate]", state.c256_selection),
+                format!(
+                    "Selected: {} [\u{2190}\u{2191}\u{2193}\u{2192} navigate]",
+                    state.c256_selection
+                ),
                 Style::default().fg(Color::White),
             ))));
             let color = Color::Indexed(state.c256_selection);
@@ -108,7 +129,9 @@ pub fn render(f: &mut Frame, area: Rect, state: &ColorPickerState) {
                 let is_sel = i == state.rgb_focus;
                 let cursor = if is_sel { "> " } else { "  " };
                 let style = if is_sel {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::White)
                 };

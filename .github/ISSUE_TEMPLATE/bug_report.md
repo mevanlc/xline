@@ -1,38 +1,49 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+about: Report a problem with the xline CLI, TUI, rendering, or theme handling
+title: "[bug] "
+labels: ""
+assignees: ""
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Summary
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+Describe the bug clearly and concisely.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Environment
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+- OS:
+- Terminal emulator:
+- Shell:
+- Claude Code version, if relevant:
+- Theme name/file:
+- Style mode: plain / nerd font / powerline
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## Steps to reproduce
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+1.
+2.
+3.
 
-**Additional context**
-Add any other context about the problem here.
+## Expected behavior
+
+What should have happened?
+
+## Actual behavior
+
+What happened instead?
+
+## Relevant config or input
+
+If relevant, include:
+
+- your `statusLine` config
+- theme TOML snippets
+- sample JSON piped into `xline`
+- terminal output or error messages
+
+Please redact any secrets or private paths as needed.
+
+## Additional context
+
+Screenshots, GIFs, and notes about font or rendering issues are helpful.

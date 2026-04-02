@@ -66,25 +66,51 @@ mod tests {
     #[test]
     fn test_color_scheme_does_not_change_icons() {
         let mut theme = UserTheme::default_theme();
-        let original_icon = theme.get_component(ComponentId::Model).unwrap().icon.plain.clone();
+        let original_icon = theme
+            .get_component(ComponentId::Model)
+            .unwrap()
+            .icon
+            .plain
+            .clone();
 
         let gruvbox = super::color_schemes::find("Gruvbox").unwrap();
         gruvbox.apply_to(&mut theme.components);
 
-        let after_icon = theme.get_component(ComponentId::Model).unwrap().icon.plain.clone();
-        assert_eq!(original_icon, after_icon, "color scheme should not change icons");
+        let after_icon = theme
+            .get_component(ComponentId::Model)
+            .unwrap()
+            .icon
+            .plain
+            .clone();
+        assert_eq!(
+            original_icon, after_icon,
+            "color scheme should not change icons"
+        );
     }
 
     #[test]
     fn test_icon_set_does_not_change_colors() {
         let mut theme = UserTheme::default_theme();
-        let original_color = theme.get_component(ComponentId::Model).unwrap().colors.icon.clone();
+        let original_color = theme
+            .get_component(ComponentId::Model)
+            .unwrap()
+            .colors
+            .icon
+            .clone();
 
         let minimal = super::icon_sets::find("Minimal").unwrap();
         minimal.apply_to(&mut theme.components);
 
-        let after_color = theme.get_component(ComponentId::Model).unwrap().colors.icon.clone();
-        assert_eq!(original_color, after_color, "icon set should not change colors");
+        let after_color = theme
+            .get_component(ComponentId::Model)
+            .unwrap()
+            .colors
+            .icon
+            .clone();
+        assert_eq!(
+            original_color, after_color,
+            "icon set should not change colors"
+        );
     }
 
     #[test]
