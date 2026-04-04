@@ -60,7 +60,7 @@ impl IconSet {
     /// Whether this icon set uses powerline arrows as separators.
     pub fn is_powerline(&self) -> bool {
         self.get(ComponentId::Separator)
-            .map_or(false, |ic| ic.nerd_font.contains('\u{e0b0}'))
+            .is_some_and(|ic| ic.nerd_font.contains('\u{e0b0}'))
     }
 
     /// Apply this icon set to a theme's components (mutates in place).

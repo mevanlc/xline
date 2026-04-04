@@ -22,10 +22,10 @@ impl<'a> StatusLineGenerator<'a> {
         // Apply dynamic icon overrides (e.g. from component metadata)
         if !dynamic_icons.is_empty() {
             for item in &mut line.items {
-                if let render::RenderItem::Seg(seg) = item {
-                    if let Some(icon_override) = dynamic_icons.get(&seg.id) {
-                        seg.icon = icon_override.clone();
-                    }
+                if let render::RenderItem::Seg(seg) = item
+                    && let Some(icon_override) = dynamic_icons.get(&seg.id)
+                {
+                    seg.icon = icon_override.clone();
                 }
             }
         }

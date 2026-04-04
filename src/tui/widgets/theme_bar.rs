@@ -92,17 +92,16 @@ pub fn render(
     };
     spans.push(Span::styled(arrow_left, left_arrow_style));
 
-    for i in start..end {
+    for (i, (label, is_active)) in entries.iter().enumerate().take(end).skip(start) {
         if i > start {
             spans.push(Span::styled(sep, Style::default().fg(Color::Indexed(236))));
         }
 
-        let (ref label, is_active) = entries[i];
         let style = if i == current_index {
             Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD)
-        } else if is_active {
+        } else if *is_active {
             Style::default().fg(Color::White)
         } else {
             Style::default().fg(Color::Indexed(245))

@@ -177,7 +177,7 @@ impl UserTheme {
             style: StyleConfig {
                 mode: StyleMode::Plain,
             },
-            components: components,
+            components,
         }
     }
 

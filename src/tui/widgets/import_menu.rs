@@ -82,13 +82,11 @@ pub fn render_colors(f: &mut Frame, area: Rect, selection: usize, theme: &UserTh
         items.push(ListItem::new(Line::from(spans)));
     }
 
-    if !user_themes.is_empty() {
-        if !schemes.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
-                Style::default().fg(Color::DarkGray),
-            ))));
-        }
+    if !user_themes.is_empty() && !schemes.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
+            Style::default().fg(Color::DarkGray),
+        ))));
     }
 
     for (i, ((name, _), line)) in user_themes.iter().zip(user_render_lines.iter()).enumerate() {
@@ -210,13 +208,11 @@ pub fn render_icons(f: &mut Frame, area: Rect, selection: usize, theme: &UserThe
         items.push(ListItem::new(Line::from(spans)));
     }
 
-    if !user_themes.is_empty() {
-        if !icon_sets.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
-                Style::default().fg(Color::DarkGray),
-            ))));
-        }
+    if !user_themes.is_empty() && !icon_sets.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "\u{2500}\u{2500}\u{2500} User Themes \u{2500}\u{2500}\u{2500}",
+            Style::default().fg(Color::DarkGray),
+        ))));
     }
 
     for (i, ((name, _), line)) in user_themes.iter().zip(user_render_lines.iter()).enumerate() {

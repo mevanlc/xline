@@ -126,22 +126,12 @@ pub struct PerModelIcons {
     pub haiku: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IconConfig {
     pub plain: String,
     pub nerd_font: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub per_model: Option<PerModelIcons>,
-}
-
-impl Default for IconConfig {
-    fn default() -> Self {
-        Self {
-            plain: String::new(),
-            nerd_font: String::new(),
-            per_model: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

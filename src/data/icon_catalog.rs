@@ -199,18 +199,18 @@ fn build_unicode_all() -> Vec<IconEntry> {
         if (0xD800..=0xDFFF).contains(&code) {
             continue;
         }
-        if let Some(ch) = char::from_u32(code) {
-            if let Some(name) = unicode_names2::name(ch) {
-                let name_str = name.to_string();
-                // Skip control characters and uninteresting blocks
-                if name_str.starts_with('<') {
-                    continue;
-                }
-                entries.push(IconEntry {
-                    icon: ch.to_string(),
-                    name: name_str,
-                });
+        if let Some(ch) = char::from_u32(code)
+            && let Some(name) = unicode_names2::name(ch)
+        {
+            let name_str = name.to_string();
+            // Skip control characters and uninteresting blocks
+            if name_str.starts_with('<') {
+                continue;
             }
+            entries.push(IconEntry {
+                icon: ch.to_string(),
+                name: name_str,
+            });
         }
     }
     entries

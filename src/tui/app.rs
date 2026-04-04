@@ -598,15 +598,15 @@ impl App {
     }
 
     fn action_save(&mut self) {
-        self.theme.active = self
-            .theme_path
-            .exists()
-            .then(|| {
+        self.theme.active = if self.theme_path.exists() {
+            {
                 manager::load_theme(&self.theme_path)
                     .map(|t| t.active)
                     .unwrap_or(false)
-            })
-            .unwrap_or(false);
+            }
+        } else {
+            false
+        };
 
         match manager::save_theme(&self.theme_path, &self.theme) {
             Ok(()) => {
@@ -813,23 +813,23 @@ impl App {
                     self.mark_dirty();
                 } else {
                     let theme_idx = idx - schemes.len();
-                    if let Some((name, path)) = user_themes.get(theme_idx) {
-                        if let Ok(src_theme) = manager::load_theme(path) {
-                            // Copy only colors from source theme
-                            for src_comp in &src_theme.components {
-                                if let Some(dest) = self
-                                    .theme
-                                    .components
-                                    .iter_mut()
-                                    .find(|c| c.id == src_comp.id)
-                                {
-                                    dest.colors = src_comp.colors.clone();
-                                    dest.styles = src_comp.styles.clone();
-                                }
+                    if let Some((name, path)) = user_themes.get(theme_idx)
+                        && let Ok(src_theme) = manager::load_theme(path)
+                    {
+                        // Copy only colors from source theme
+                        for src_comp in &src_theme.components {
+                            if let Some(dest) = self
+                                .theme
+                                .components
+                                .iter_mut()
+                                .find(|c| c.id == src_comp.id)
+                            {
+                                dest.colors = src_comp.colors.clone();
+                                dest.styles = src_comp.styles.clone();
                             }
-                            self.status_message = Some(format!("Imported colors from {}", name));
-                            self.mark_dirty();
                         }
+                        self.status_message = Some(format!("Imported colors from {}", name));
+                        self.mark_dirty();
                     }
                 }
             }
@@ -874,21 +874,21 @@ impl App {
                     self.mark_dirty();
                 } else {
                     let theme_idx = idx - icon_sets.len();
-                    if let Some((name, path)) = user_themes.get(theme_idx) {
-                        if let Ok(src_theme) = manager::load_theme(path) {
-                            for src_comp in &src_theme.components {
-                                if let Some(dest) = self
-                                    .theme
-                                    .components
-                                    .iter_mut()
-                                    .find(|c| c.id == src_comp.id)
-                                {
-                                    dest.icon = src_comp.icon.clone();
-                                }
+                    if let Some((name, path)) = user_themes.get(theme_idx)
+                        && let Ok(src_theme) = manager::load_theme(path)
+                    {
+                        for src_comp in &src_theme.components {
+                            if let Some(dest) = self
+                                .theme
+                                .components
+                                .iter_mut()
+                                .find(|c| c.id == src_comp.id)
+                            {
+                                dest.icon = src_comp.icon.clone();
                             }
-                            self.status_message = Some(format!("Imported icons from {}", name));
-                            self.mark_dirty();
                         }
+                        self.status_message = Some(format!("Imported icons from {}", name));
+                        self.mark_dirty();
                     }
                 }
             }
@@ -1028,7 +1028,7 @@ impl App {
             KeyCode::Up => match *self.color_picker.mode.current() {
                 ColorPickerMode::Color16 => {
                     let sel = self.color_picker.c16_selection;
-                    if sel % 8 > 0 {
+                    if !sel.is_multiple_of(8) {
                         self.color_picker.c16_selection = sel - 1;
                     }
                 }
@@ -1050,9 +1050,8 @@ impl App {
                     }
                 }
                 ColorPickerMode::Color256 => {
-                    if self.color_picker.c256_selection < 255 {
-                        self.color_picker.c256_selection += 1;
-                    }
+                    self.color_picker.c256_selection =
+                        self.color_picker.c256_selection.saturating_add(1);
                 }
                 ColorPickerMode::Rgb => {
                     if self.color_picker.rgb_focus < 2 {
@@ -1080,7 +1079,7 @@ impl App {
                 }
                 ColorPickerMode::Color256 => {
                     self.color_picker.c256_selection =
-                        self.color_picker.c256_selection.saturating_add(16).min(255);
+                        self.color_picker.c256_selection.saturating_add(16);
                 }
                 _ => {}
             },

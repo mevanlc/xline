@@ -3,14 +3,9 @@ use crate::config::types::{ComponentId, PerModelIcons};
 use crate::core::input::InputData;
 use std::collections::HashMap;
 
+#[derive(Default)]
 pub struct ModelComponent {
     per_model: Option<PerModelIcons>,
-}
-
-impl Default for ModelComponent {
-    fn default() -> Self {
-        Self { per_model: None }
-    }
 }
 
 impl ModelComponent {
@@ -56,19 +51,19 @@ impl Component for ModelComponent {
         metadata.insert("model_id".into(), input.model.id.clone());
         metadata.insert("display_name".into(), display_name.clone());
 
-        if let Some(pm) = &self.per_model {
-            if pm.enabled {
-                let model_id = input.model.id.to_ascii_lowercase();
-                let icon = if model_id.contains("opus") {
-                    &pm.opus
-                } else if model_id.contains("haiku") {
-                    &pm.haiku
-                } else {
-                    &pm.sonnet
-                };
-                if !icon.is_empty() {
-                    metadata.insert("dynamic_icon".into(), icon.clone());
-                }
+        if let Some(pm) = &self.per_model
+            && pm.enabled
+        {
+            let model_id = input.model.id.to_ascii_lowercase();
+            let icon = if model_id.contains("opus") {
+                &pm.opus
+            } else if model_id.contains("haiku") {
+                &pm.haiku
+            } else {
+                &pm.sonnet
+            };
+            if !icon.is_empty() {
+                metadata.insert("dynamic_icon".into(), icon.clone());
             }
         }
 

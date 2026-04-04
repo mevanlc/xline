@@ -143,10 +143,10 @@ fn list_theme_files(dir: &Path) -> std::io::Result<Vec<(String, PathBuf)>> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("toml") {
-            if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                themes.push((name.to_string(), path));
-            }
+        if path.extension().and_then(|e| e.to_str()) == Some("toml")
+            && let Some(name) = path.file_stem().and_then(|s| s.to_str())
+        {
+            themes.push((name.to_string(), path));
         }
     }
     themes.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
@@ -161,8 +161,7 @@ pub fn load_theme(path: &Path) -> Result<UserTheme, LoadError> {
 
 /// Save a theme to a .toml file.
 pub fn save_theme(path: &Path, theme: &UserTheme) -> std::io::Result<()> {
-    let content = toml::to_string_pretty(theme)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    let content = toml::to_string_pretty(theme).map_err(std::io::Error::other)?;
     fs::write(path, content)
 }
 
@@ -280,10 +279,7 @@ pub fn duplicate_theme(src_path: &Path, new_name: &str) -> Result<PathBuf, Renam
 
     let mut theme = load_theme(src_path).map_err(|e| match e {
         LoadError::Io(io) => RenameError::Io(io),
-        other => RenameError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("{}", other),
-        )),
+        other => RenameError::Io(std::io::Error::other(format!("{}", other))),
     })?;
     theme.active = false; // duplicate is not active by default
     save_theme(&new_path, &theme).map_err(RenameError::Io)?;

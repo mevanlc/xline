@@ -19,7 +19,7 @@ pub fn load() -> Vec<NerdFontGlyph> {
             let code = u32::from_str_radix(code_str, 16).ok()?;
             let ch = char::from_u32(code)?;
             Some(NerdFontGlyph {
-                name: key.replace('_', " ").replace('-', " "),
+                name: key.replace(['_', '-'], " "),
                 icon: ch.to_string(),
             })
         })

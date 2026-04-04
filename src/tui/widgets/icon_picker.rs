@@ -264,7 +264,7 @@ fn render_icon_list(f: &mut Frame, area: Rect, state: &IconPickerState, catalog:
 
     // Page counter in bottom-right of the Icons block border
     if visible_height > 0 && !flat.is_empty() {
-        let total_pages = (flat.len() + visible_height - 1) / visible_height;
+        let total_pages = flat.len().div_ceil(visible_height);
         let current_page = scroll / visible_height + 1;
         let counter = format!(" Page {}/{} ", current_page, total_pages);
         let counter_width = counter.len() as u16;

@@ -1,3 +1,7 @@
 /target
 *.bkp
 *.dtmp
+__pycache__/
+*.pyc
+aidocs/showcase/.venv/
+aidocs/showcase/out/

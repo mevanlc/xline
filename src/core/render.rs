@@ -59,7 +59,7 @@ pub fn build_render_line(
 
     // Gather separator info
     let sep_cfg = components.iter().find(|c| c.id == ComponentId::Separator);
-    let sep_enabled = sep_cfg.map_or(false, |s| s.enabled);
+    let sep_enabled = sep_cfg.is_some_and(|s| s.enabled);
     let sep_glyph = sep_cfg
         .map(|s| match mode {
             StyleMode::Plain | StyleMode::PlainPowerline => s.icon.plain.as_str(),
@@ -308,21 +308,19 @@ pub fn render_spans(line: &RenderLine) -> Vec<Span<'static>> {
                     if !seg.secondary.is_empty() {
                         spans.push(Span::styled(format!("{} ", seg.secondary), text_style));
                     }
+                } else if seg.text.is_empty() && seg.secondary.is_empty() {
+                    // Icons-only mode: just the icon, no trailing space
+                    spans.push(Span::styled(seg.icon.clone(), icon_style));
+                } else if seg.icon.is_empty() {
+                    spans.push(Span::styled(seg.text.clone(), text_style));
+                    if !seg.secondary.is_empty() {
+                        spans.push(Span::styled(format!(" {}", seg.secondary), text_style));
+                    }
                 } else {
-                    if seg.text.is_empty() && seg.secondary.is_empty() {
-                        // Icons-only mode: just the icon, no trailing space
-                        spans.push(Span::styled(seg.icon.clone(), icon_style));
-                    } else if seg.icon.is_empty() {
-                        spans.push(Span::styled(seg.text.clone(), text_style));
-                        if !seg.secondary.is_empty() {
-                            spans.push(Span::styled(format!(" {}", seg.secondary), text_style));
-                        }
-                    } else {
-                        spans.push(Span::styled(format!("{} ", seg.icon), icon_style));
-                        spans.push(Span::styled(seg.text.clone(), text_style));
-                        if !seg.secondary.is_empty() {
-                            spans.push(Span::styled(format!(" {}", seg.secondary), text_style));
-                        }
+                    spans.push(Span::styled(format!("{} ", seg.icon), icon_style));
+                    spans.push(Span::styled(seg.text.clone(), text_style));
+                    if !seg.secondary.is_empty() {
+                        spans.push(Span::styled(format!(" {}", seg.secondary), text_style));
                     }
                 }
             }
