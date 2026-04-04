@@ -58,8 +58,9 @@ mod tests {
         let powerline = super::icon_sets::find("Powerline").unwrap();
         powerline.apply_to(&mut theme.components);
 
-        // Powerline separator should be the powerline arrow or empty
+        // Powerline separator should provide both the plain and Nerd Font connectors.
         let sep = theme.get_component(ComponentId::Separator).unwrap();
+        assert_eq!(sep.icon.plain, "\u{25ba}");
         assert!(sep.icon.nerd_font.contains('\u{e0b0}'));
     }
 
