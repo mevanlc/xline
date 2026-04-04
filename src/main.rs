@@ -1,7 +1,31 @@
 use std::io::{self, IsTerminal, Read};
 
+fn print_help() {
+    println!("xline {}", env!("CARGO_PKG_VERSION"));
+    println!();
+    println!("USAGE:");
+    println!("    xline                     Launch TUI theme editor");
+    println!("    <json> | xline            Render status line from JSON input");
+    println!();
+    println!("OPTIONS:");
+    println!("    -h, --help                Print this help message");
+    println!("    -V, --version             Print version");
+    println!("    --write-default-themes    Write default themes to config directory");
+    println!("        --force               Overwrite existing themes");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        print_help();
+        return;
+    }
+
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("xline {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
 
     // Handle --write-default-themes [--force]
     if args.iter().any(|a| a == "--write-default-themes") {
@@ -14,9 +38,9 @@ fn main() {
         match xline::config::manager::write_default_themes(&dir, force) {
             Ok(n) => {
                 if n > 0 {
-                    eprintln!("Wrote {} default theme(s) to {}", n, dir.display());
+                    eprintln!("xline: wrote {} default theme(s) to {}", n, dir.display());
                 } else {
-                    eprintln!("All default themes already exist (use --force to overwrite)");
+                    eprintln!("xline: all default themes already exist (use --force to overwrite)");
                 }
             }
             Err(e) => {

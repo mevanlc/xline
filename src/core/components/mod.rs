@@ -11,8 +11,17 @@ use crate::config::types::ComponentId;
 use crate::core::input::InputData;
 use std::collections::HashMap;
 
+/// A component that collects data from [`InputData`] for display in the status line.
+///
+/// Each component extracts relevant fields from the input and returns them as
+/// [`ComponentData`]. Returning `None` signals that the component has nothing to
+/// display for this invocation (e.g. a field is absent or the value is not
+/// meaningful), and the component will be omitted from the rendered output.
 pub trait Component {
+    /// Extract display data from `input`. Returns `None` to suppress the component.
     fn collect(&self, input: &InputData) -> Option<ComponentData>;
+
+    /// The stable identifier for this component type.
     fn id(&self) -> ComponentId;
 }
 

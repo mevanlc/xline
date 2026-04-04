@@ -424,6 +424,12 @@ fn ansi_sep(sep: &SepToken) -> String {
 // ANSI escape helpers
 // ---------------------------------------------------------------------------
 
+// ANSI SGR base codes for the 16-color palette
+const ANSI_FG_NORMAL_BASE: u8 = 30; // colors 0–7  → SGR 30–37
+const ANSI_FG_BRIGHT_BASE: u8 = 90; // colors 8–15 → SGR 90–97
+const ANSI_BG_NORMAL_BASE: u8 = 40; // colors 0–7  → SGR 40–47
+const ANSI_BG_BRIGHT_BASE: u8 = 100; // colors 8–15 → SGR 100–107
+
 fn apply_color(text: &str, color: Option<&AnsiColor>) -> String {
     match color {
         Some(c) => format!("{}{}\x1b[0m", fg_ansi_code(c), text),
@@ -473,9 +479,9 @@ fn fg_sgr(color: &AnsiColor) -> String {
     match color {
         AnsiColor::Color16 { c16 } => {
             if *c16 < 8 {
-                (30 + c16).to_string()
+                (ANSI_FG_NORMAL_BASE + c16).to_string()
             } else {
-                (90 + (c16 - 8)).to_string()
+                (ANSI_FG_BRIGHT_BASE + (c16 - 8)).to_string()
             }
         }
         AnsiColor::Color256 { c256 } => format!("38;5;{}", c256),
@@ -486,7 +492,11 @@ fn fg_sgr(color: &AnsiColor) -> String {
 fn bg_ansi_code(color: &AnsiColor) -> String {
     match color {
         AnsiColor::Color16 { c16 } => {
-            let code = if *c16 < 8 { 40 + c16 } else { 100 + (c16 - 8) };
+            let code = if *c16 < 8 {
+                ANSI_BG_NORMAL_BASE + c16
+            } else {
+                ANSI_BG_BRIGHT_BASE + (c16 - 8)
+            };
             format!("\x1b[{}m", code)
         }
         AnsiColor::Color256 { c256 } => format!("\x1b[48;5;{}m", c256),
