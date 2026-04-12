@@ -9,7 +9,7 @@ mod tests {
     #[test]
     fn test_all_color_schemes_load() {
         let schemes = super::color_schemes::all();
-        assert!(schemes.len() >= 9, "expected at least 9 color schemes");
+        assert!(schemes.len() >= 10, "expected at least 10 color schemes");
         for scheme in &schemes {
             assert!(!scheme.name.is_empty());
             // Every scheme should define colors for all non-separator components
@@ -27,7 +27,7 @@ mod tests {
     #[test]
     fn test_all_icon_sets_load() {
         let sets = super::icon_sets::all();
-        assert!(sets.len() >= 4, "expected at least 4 icon sets");
+        assert!(sets.len() >= 5, "expected at least 5 icon sets");
         for set in &sets {
             assert!(!set.name.is_empty());
             for id in ComponentId::ALL {

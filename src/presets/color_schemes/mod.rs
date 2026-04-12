@@ -1,6 +1,7 @@
 mod cometix;
 mod default;
 mod gruvbox;
+mod late;
 mod minimal;
 mod nord;
 mod powerline_dark;
@@ -92,6 +93,7 @@ pub fn all() -> Vec<ColorScheme> {
         default::scheme(),
         cometix::scheme(),
         gruvbox::scheme(),
+        late::scheme(),
         nord::scheme(),
         minimal::scheme(),
         powerline_dark::scheme(),

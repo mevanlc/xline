@@ -1,4 +1,5 @@
 mod emoji;
+mod late;
 mod minimal;
 mod nerd_font;
 mod powerline;
@@ -78,6 +79,7 @@ impl IconSet {
 pub fn all() -> Vec<IconSet> {
     vec![
         emoji::icon_set(),
+        late::icon_set(),
         nerd_font::icon_set(),
         minimal::icon_set(),
         powerline::icon_set(),

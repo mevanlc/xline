@@ -101,6 +101,13 @@ pub fn write_default_themes(dir: &Path, force: bool) -> std::io::Result<usize> {
             mode: StyleMode::NerdFont,
             active: false,
         },
+        Spec {
+            name: "Late",
+            colors: "Late",
+            icons: "Late",
+            mode: StyleMode::NerdFont,
+            active: false,
+        },
     ];
 
     let mut written = 0;
