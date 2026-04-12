@@ -73,6 +73,16 @@ pub enum ConfirmAction {
     DeleteTheme,
     ExitWithoutSaving,
     DiscardAndOpen,
+    ReinstallDefaults,
+}
+
+impl ConfirmAction {
+    pub fn hints(&self) -> &'static [(&'static str, &'static str)] {
+        match self {
+            ConfirmAction::ReinstallDefaults => &[("O", "OK"), ("C", "Cancel")],
+            _ => &[("Y", "Yes"), ("N", "No")],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,6 +94,7 @@ pub enum FileMenuAction {
     Open,
     Rename,
     Delete,
+    ReinstallDefaults,
     Exit,
 }
 
@@ -170,6 +181,7 @@ impl FileMenuAction {
             Self::Open,
             Self::Rename,
             Self::Delete,
+            Self::ReinstallDefaults,
             Self::Exit,
         ]
     }
@@ -183,6 +195,7 @@ pub const FILE_MENU_ITEMS: &[(&str, char)] = &[
     ("Open...", 'o'),
     ("Rename...", 'r'),
     ("Delete", 'd'),
+    ("Reinstall default themes", 'i'),
     ("Exit", 'x'),
 ];
 
@@ -566,6 +579,7 @@ impl App {
                     FileMenuAction::Open => self.action_open(),
                     FileMenuAction::Rename => self.action_rename(),
                     FileMenuAction::Delete => self.action_delete(),
+                    FileMenuAction::ReinstallDefaults => self.action_reinstall_defaults(),
                     FileMenuAction::Exit => self.action_exit(),
                 }
             }
@@ -650,6 +664,13 @@ impl App {
         self.confirm_dialog_action = ConfirmAction::DeleteTheme;
     }
 
+    fn action_reinstall_defaults(&mut self) {
+        self.confirm_dialog_open = true;
+        self.confirm_dialog_message =
+            "Customized defaults will be overwritten.\nAre you sure?".into();
+        self.confirm_dialog_action = ConfirmAction::ReinstallDefaults;
+    }
+
     fn action_exit(&mut self) {
         if self.is_dirty {
             self.confirm_dialog_open = true;
@@ -724,11 +745,11 @@ impl App {
     // --- Confirm dialog ---
 
     fn handle_confirm_dialog(&mut self, code: KeyCode, is_cancel: bool) {
-        if is_cancel || code == KeyCode::Char('n') || code == KeyCode::Char('N') {
+        if is_cancel || matches!(code, KeyCode::Char('n' | 'N' | 'c' | 'C')) {
             self.confirm_dialog_open = false;
             return;
         }
-        if code == KeyCode::Char('y') || code == KeyCode::Char('Y') || code == KeyCode::Enter {
+        if matches!(code, KeyCode::Char('y' | 'Y' | 'o' | 'O') | KeyCode::Enter) {
             self.confirm_dialog_open = false;
             match self.confirm_dialog_action {
                 ConfirmAction::DeleteTheme => {
@@ -770,6 +791,25 @@ impl App {
                     if let Some((name, path_str)) = stash.split_once('\0') {
                         let path = PathBuf::from(path_str);
                         self.do_open_theme(name, &path);
+                    }
+                }
+                ConfirmAction::ReinstallDefaults => {
+                    let dir = manager::themes_dir();
+                    match manager::write_default_themes(&dir, true) {
+                        Ok(n) => {
+                            // Reload current theme if its file was overwritten
+                            if let Ok(reloaded) = manager::load_theme(&self.theme_path) {
+                                self.theme = reloaded;
+                                self.is_dirty = false;
+                            }
+                            self.refresh_theme_list();
+                            self.status_message =
+                                Some(format!("Reinstalled {} default themes", n));
+                        }
+                        Err(e) => {
+                            self.status_message =
+                                Some(format!("Reinstall error: {}", e));
+                        }
                     }
                 }
             }
@@ -1505,7 +1545,12 @@ impl App {
             super::widgets::name_input::render(f, f.area(), title, &self.name_input_buffer);
         }
         if self.confirm_dialog_open {
-            super::widgets::confirm_dialog::render(f, f.area(), &self.confirm_dialog_message);
+            super::widgets::confirm_dialog::render(
+                f,
+                f.area(),
+                &self.confirm_dialog_message,
+                self.confirm_dialog_action.hints(),
+            );
         }
         if self.color_picker_open {
             super::widgets::color_picker::render(f, f.area(), &self.color_picker);
