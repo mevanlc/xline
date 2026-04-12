@@ -10,8 +10,7 @@ fn print_help() {
     println!("OPTIONS:");
     println!("    -h, --help                Print this help message");
     println!("    -V, --version             Print version");
-    println!("    --write-default-themes    Write default themes to config directory");
-    println!("        --force               Overwrite existing themes");
+    println!("    --install-themes          Install/reinstall default themes");
 }
 
 fn main() {
@@ -27,24 +26,19 @@ fn main() {
         return;
     }
 
-    // Handle --write-default-themes [--force]
-    if args.iter().any(|a| a == "--write-default-themes") {
-        let force = args.iter().any(|a| a == "--force");
+    // Handle --install-themes
+    if args.iter().any(|a| a == "--install-themes") {
         let dir = xline::config::manager::themes_dir();
         if let Err(e) = std::fs::create_dir_all(&dir) {
             eprintln!("xline: cannot create themes dir: {}", e);
             std::process::exit(1);
         }
-        match xline::config::manager::write_default_themes(&dir, force) {
+        match xline::config::manager::write_default_themes(&dir, true) {
             Ok(n) => {
-                if n > 0 {
-                    eprintln!("xline: wrote {} default theme(s) to {}", n, dir.display());
-                } else {
-                    eprintln!("xline: all default themes already exist (use --force to overwrite)");
-                }
+                eprintln!("xline: installed {} default theme(s) to {}", n, dir.display());
             }
             Err(e) => {
-                eprintln!("xline: error writing themes: {}", e);
+                eprintln!("xline: error installing themes: {}", e);
                 std::process::exit(1);
             }
         }
