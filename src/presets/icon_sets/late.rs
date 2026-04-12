@@ -65,10 +65,10 @@ pub fn icon_set() -> IconSet {
             (
                 Separator,
                 ComponentIcons {
-                    plain: " \u{00b7} ",
-                    nerd_font: " \u{00b7} ",
+                    plain: " \u{2502} ",
+                    nerd_font: " \u{2502} ",
                 },
-            ), // ·
+            ), // │
         ],
     )
 }

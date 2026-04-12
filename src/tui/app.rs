@@ -148,9 +148,11 @@ pub struct IconPickerState {
     pub tab: RingCursor<IconPickerTab>,
     pub purpose: IconPickerPurpose,
     pub search_query: String,
+    pub search_cursor: usize,
     pub selected_index: usize,
     pub scroll_offset: usize,
     pub custom_buffer: String,
+    pub custom_cursor: usize,
 }
 
 impl Default for IconPickerState {
@@ -164,9 +166,11 @@ impl Default for IconPickerState {
             ]),
             purpose: IconPickerPurpose::PlainIcon,
             search_query: String::new(),
+            search_cursor: 0,
             selected_index: 0,
             scroll_offset: 0,
             custom_buffer: String::new(),
+            custom_cursor: 0,
         }
     }
 }
@@ -1221,6 +1225,7 @@ impl App {
             String::new()
         };
 
+        let custom_cursor = current.chars().count();
         self.icon_picker = IconPickerState {
             tab: RingCursor::new(vec![
                 IconPickerTab::Emoji,
@@ -1230,9 +1235,11 @@ impl App {
             ]),
             purpose,
             search_query: String::new(),
+            search_cursor: 0,
             selected_index: 0,
             scroll_offset: 0,
             custom_buffer: current,
+            custom_cursor,
         };
         self.icon_picker.tab.set(&initial_tab);
         self.icon_picker_open = true;
@@ -1247,16 +1254,6 @@ impl App {
         let is_custom = *self.icon_picker.tab.current() == IconPickerTab::Custom;
 
         match code {
-            KeyCode::Tab | KeyCode::Right if !is_custom => {
-                self.icon_picker.tab.move_next();
-                self.icon_picker.selected_index = 0;
-                self.icon_picker.scroll_offset = 0;
-            }
-            KeyCode::BackTab | KeyCode::Left if !is_custom => {
-                self.icon_picker.tab.move_prev();
-                self.icon_picker.selected_index = 0;
-                self.icon_picker.scroll_offset = 0;
-            }
             KeyCode::Tab => {
                 self.icon_picker.tab.move_next();
                 self.icon_picker.selected_index = 0;
@@ -1266,6 +1263,28 @@ impl App {
                 self.icon_picker.tab.move_prev();
                 self.icon_picker.selected_index = 0;
                 self.icon_picker.scroll_offset = 0;
+            }
+            KeyCode::Left => {
+                if is_custom {
+                    self.icon_picker.custom_cursor =
+                        self.icon_picker.custom_cursor.saturating_sub(1);
+                } else {
+                    self.icon_picker.search_cursor =
+                        self.icon_picker.search_cursor.saturating_sub(1);
+                }
+            }
+            KeyCode::Right => {
+                if is_custom {
+                    let len = self.icon_picker.custom_buffer.chars().count();
+                    if self.icon_picker.custom_cursor < len {
+                        self.icon_picker.custom_cursor += 1;
+                    }
+                } else {
+                    let len = self.icon_picker.search_query.chars().count();
+                    if self.icon_picker.search_cursor < len {
+                        self.icon_picker.search_cursor += 1;
+                    }
+                }
             }
             KeyCode::Up if !is_custom => {
                 if self.icon_picker.selected_index > 0 {
@@ -1311,20 +1330,48 @@ impl App {
             }
             KeyCode::Char(c) => {
                 if is_custom {
-                    self.icon_picker.custom_buffer.push(c);
+                    let byte_pos = self.icon_picker.custom_buffer
+                        .char_indices()
+                        .nth(self.icon_picker.custom_cursor)
+                        .map(|(i, _)| i)
+                        .unwrap_or(self.icon_picker.custom_buffer.len());
+                    self.icon_picker.custom_buffer.insert(byte_pos, c);
+                    self.icon_picker.custom_cursor += 1;
                 } else {
-                    self.icon_picker.search_query.push(c);
+                    let byte_pos = self.icon_picker.search_query
+                        .char_indices()
+                        .nth(self.icon_picker.search_cursor)
+                        .map(|(i, _)| i)
+                        .unwrap_or(self.icon_picker.search_query.len());
+                    self.icon_picker.search_query.insert(byte_pos, c);
+                    self.icon_picker.search_cursor += 1;
                     self.icon_picker.selected_index = 0;
                     self.icon_picker.scroll_offset = 0;
                 }
             }
             KeyCode::Backspace => {
                 if is_custom {
-                    self.icon_picker.custom_buffer.pop();
+                    if self.icon_picker.custom_cursor > 0 {
+                        let byte_pos = self.icon_picker.custom_buffer
+                            .char_indices()
+                            .nth(self.icon_picker.custom_cursor - 1)
+                            .map(|(i, _)| i)
+                            .unwrap_or(0);
+                        self.icon_picker.custom_buffer.remove(byte_pos);
+                        self.icon_picker.custom_cursor -= 1;
+                    }
                 } else {
-                    self.icon_picker.search_query.pop();
-                    self.icon_picker.selected_index = 0;
-                    self.icon_picker.scroll_offset = 0;
+                    if self.icon_picker.search_cursor > 0 {
+                        let byte_pos = self.icon_picker.search_query
+                            .char_indices()
+                            .nth(self.icon_picker.search_cursor - 1)
+                            .map(|(i, _)| i)
+                            .unwrap_or(0);
+                        self.icon_picker.search_query.remove(byte_pos);
+                        self.icon_picker.search_cursor -= 1;
+                        self.icon_picker.selected_index = 0;
+                        self.icon_picker.scroll_offset = 0;
+                    }
                 }
             }
             _ => {}

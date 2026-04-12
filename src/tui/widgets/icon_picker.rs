@@ -104,7 +104,9 @@ pub fn render(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &Icon
         f,
         layout[3],
         &[
-            ("\u{2190}\u{2191}\u{2193}\u{2192}", "Navigate"),
+            ("Tab", "Switch Set"),
+            ("\u{2190}\u{2192}", "Cursor"),
+            ("\u{2191}\u{2193}", "Navigate"),
             ("Enter", "Select"),
             ("Esc", "Cancel"),
         ],
@@ -149,12 +151,7 @@ fn render_tabs(f: &mut Frame, area: Rect, state: &IconPickerState) {
 }
 
 fn render_search(f: &mut Frame, area: Rect, state: &IconPickerState) {
-    let cursor = "\u{2588}";
-    let text = Line::from(vec![
-        Span::raw(" "),
-        Span::styled(&state.search_query, Style::default().fg(Color::White)),
-        Span::styled(cursor, Style::default().fg(Color::Blue)),
-    ]);
+    let text = render_text_with_cursor(&state.search_query, state.search_cursor);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -167,12 +164,7 @@ fn render_search(f: &mut Frame, area: Rect, state: &IconPickerState) {
 }
 
 fn render_custom_input(f: &mut Frame, area: Rect, state: &IconPickerState) {
-    let cursor = "\u{2588}";
-    let text = Line::from(vec![
-        Span::raw(" "),
-        Span::styled(&state.custom_buffer, Style::default().fg(Color::White)),
-        Span::styled(cursor, Style::default().fg(Color::Blue)),
-    ]);
+    let text = render_text_with_cursor(&state.custom_buffer, state.custom_cursor);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -182,6 +174,31 @@ fn render_custom_input(f: &mut Frame, area: Rect, state: &IconPickerState) {
 
     let para = Paragraph::new(text).block(block);
     f.render_widget(para, area);
+}
+
+/// Render a text field with a block cursor at the given character position.
+fn render_text_with_cursor(text: &str, cursor_pos: usize) -> Line<'static> {
+    let before: String = text.chars().take(cursor_pos).collect();
+    let cursor_char: String = text.chars().nth(cursor_pos).map_or(
+        "\u{2588}".to_string(), // block cursor when at end
+        |c| c.to_string(),
+    );
+    let after: String = text.chars().skip(cursor_pos + 1).collect();
+
+    let cursor_style = if cursor_pos < text.chars().count() {
+        // Cursor is on a character — highlight it
+        Style::default().fg(Color::Black).bg(Color::Blue)
+    } else {
+        // Cursor is at end — show block
+        Style::default().fg(Color::Blue)
+    };
+
+    Line::from(vec![
+        Span::raw(" "),
+        Span::styled(before, Style::default().fg(Color::White)),
+        Span::styled(cursor_char, cursor_style),
+        Span::styled(after, Style::default().fg(Color::White)),
+    ])
 }
 
 fn render_icon_list(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &IconCatalogData) {
