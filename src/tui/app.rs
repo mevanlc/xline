@@ -1383,8 +1383,7 @@ impl App {
         let sections = self
             .icon_catalog
             .sections(tab, &self.icon_picker.search_query);
-        let flat = super::widgets::icon_picker::flatten_sections(&sections);
-        super::widgets::icon_picker::selectable_count(&flat)
+        super::widgets::icon_picker::selectable_count(&sections)
     }
 
     fn icon_picker_visible_height(&self) -> usize {
@@ -1398,20 +1397,13 @@ impl App {
         let sections = self
             .icon_catalog
             .sections(tab, &self.icon_picker.search_query);
-        let flat = super::widgets::icon_picker::flatten_sections(&sections);
 
-        // Find the flat-list index of the selected item
-        let mut sel_count = 0;
-        let mut flat_idx = 0;
-        for (i, item) in flat.iter().enumerate() {
-            if matches!(item, super::widgets::icon_picker::FlatItem::Icon { .. }) {
-                if sel_count == self.icon_picker.selected_index {
-                    flat_idx = i;
-                    break;
-                }
-                sel_count += 1;
-            }
-        }
+        let Some(flat_idx) = super::widgets::icon_picker::selectable_to_flat(
+            &sections,
+            self.icon_picker.selected_index,
+        ) else {
+            return;
+        };
 
         if flat_idx < self.icon_picker.scroll_offset {
             self.icon_picker.scroll_offset = flat_idx;
@@ -1430,22 +1422,12 @@ impl App {
             let sections = self
                 .icon_catalog
                 .sections(tab, &self.icon_picker.search_query);
-            let flat = super::widgets::icon_picker::flatten_sections(&sections);
 
-            // Find the icon at selected_index
-            let mut sel_count = 0;
-            let mut found = None;
-            for item in &flat {
-                if let super::widgets::icon_picker::FlatItem::Icon { icon, .. } = item {
-                    if sel_count == self.icon_picker.selected_index {
-                        found = Some(icon.clone());
-                        break;
-                    }
-                    sel_count += 1;
-                }
-            }
-            match found {
-                Some(s) => s,
+            match super::widgets::icon_picker::entry_at_selectable(
+                &sections,
+                self.icon_picker.selected_index,
+            ) {
+                Some(entry) => entry.icon.clone(),
                 None => return, // nothing selected
             }
         };

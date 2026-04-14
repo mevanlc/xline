@@ -1,16 +1,45 @@
 use super::nerd_fonts;
 
-/// A single icon entry: the icon string and a display name for search.
+/// A single icon entry: the icon string, a display name for search, and a
+/// precomputed lowercase name for fast case-insensitive filtering.
 #[derive(Clone)]
 pub struct IconEntry {
     pub icon: String,
     pub name: String,
+    pub name_lower: String,
 }
 
-/// A named section of icons (e.g., "Common Emoji", "All Emoji").
-pub struct IconSection {
-    pub title: String,
-    pub entries: Vec<IconEntry>,
+/// A view over a section's entries: either a borrowed slice (unfiltered) or a
+/// Vec of references (filtered by a search query). Either way no entry data is
+/// cloned; the Unicode "All" set (~100k rows) is touched without allocation.
+pub enum SectionEntries<'a> {
+    Full(&'a [IconEntry]),
+    Filtered(Vec<&'a IconEntry>),
+}
+
+impl<'a> SectionEntries<'a> {
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Full(s) => s.len(),
+            Self::Filtered(v) => v.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get(&self, i: usize) -> Option<&'a IconEntry> {
+        match self {
+            Self::Full(s) => s.get(i),
+            Self::Filtered(v) => v.get(i).copied(),
+        }
+    }
+}
+
+pub struct SectionView<'a> {
+    pub title: &'static str,
+    pub entries: SectionEntries<'a>,
 }
 
 /// Pre-built icon catalog data, held on App for the lifetime of the process.
@@ -97,8 +126,11 @@ impl IconCatalogData {
         }
     }
 
-    /// Return filtered sections for a given tab and search query.
-    pub fn sections(&self, tab: IconPickerTab, query: &str) -> Vec<IconSection> {
+    /// Return a borrowed, non-allocating view over the sections for a given
+    /// tab and search query. Unfiltered (empty query) returns slice views;
+    /// filtered returns a Vec of references — no entry data is cloned either
+    /// way.
+    pub fn sections(&self, tab: IconPickerTab, query: &str) -> Vec<SectionView<'_>> {
         let query_lower = query.to_lowercase();
 
         match tab {
@@ -138,25 +170,31 @@ pub enum IconPickerTab {
 
 // --- builders ---
 
+fn make_entry(icon: String, name: String) -> IconEntry {
+    let name_lower = name.to_lowercase();
+    IconEntry {
+        icon,
+        name,
+        name_lower,
+    }
+}
+
 fn build_emoji_common() -> Vec<IconEntry> {
     COMMON_EMOJI
         .iter()
         .filter_map(|s| {
             let emoji = emojis::get(s)?;
-            Some(IconEntry {
-                icon: emoji.as_str().to_string(),
-                name: emoji.name().to_string(),
-            })
+            Some(make_entry(
+                emoji.as_str().to_string(),
+                emoji.name().to_string(),
+            ))
         })
         .collect()
 }
 
 fn build_emoji_all() -> Vec<IconEntry> {
     emojis::iter()
-        .map(|emoji| IconEntry {
-            icon: emoji.as_str().to_string(),
-            name: emoji.name().to_string(),
-        })
+        .map(|emoji| make_entry(emoji.as_str().to_string(), emoji.name().to_string()))
         .collect()
 }
 
@@ -164,19 +202,15 @@ fn build_nerd_sections(all: &[nerd_fonts::NerdFontGlyph]) -> (Vec<IconEntry>, Ve
     let common: Vec<IconEntry> = COMMON_NERD_NAMES
         .iter()
         .filter_map(|prefix| {
-            all.iter().find(|g| g.name == *prefix).map(|g| IconEntry {
-                icon: g.icon.clone(),
-                name: g.name.clone(),
-            })
+            all.iter()
+                .find(|g| g.name == *prefix)
+                .map(|g| make_entry(g.icon.clone(), g.name.clone()))
         })
         .collect();
 
     let all_entries: Vec<IconEntry> = all
         .iter()
-        .map(|g| IconEntry {
-            icon: g.icon.clone(),
-            name: g.name.clone(),
-        })
+        .map(|g| make_entry(g.icon.clone(), g.name.clone()))
         .collect();
 
     (common, all_entries)
@@ -185,10 +219,7 @@ fn build_nerd_sections(all: &[nerd_fonts::NerdFontGlyph]) -> (Vec<IconEntry>, Ve
 fn build_unicode_common() -> Vec<IconEntry> {
     COMMON_UNICODE
         .iter()
-        .map(|(icon, name)| IconEntry {
-            icon: icon.to_string(),
-            name: name.to_string(),
-        })
+        .map(|(icon, name)| make_entry(icon.to_string(), name.to_string()))
         .collect()
 }
 
@@ -207,62 +238,56 @@ fn build_unicode_all() -> Vec<IconEntry> {
             if name_str.starts_with('<') {
                 continue;
             }
-            entries.push(IconEntry {
-                icon: ch.to_string(),
-                name: name_str,
-            });
+            entries.push(make_entry(ch.to_string(), name_str));
         }
     }
     entries
 }
 
-/// Filter two sections by query, returning only non-empty sections.
-fn filter_two_sections(
-    common_title: &str,
-    common: &[IconEntry],
-    all_title: &str,
-    all: &[IconEntry],
+/// Build two borrowed views for a tab: unfiltered = slice views, filtered =
+/// Vec-of-refs views. Empty sections are dropped.
+fn filter_two_sections<'a>(
+    common_title: &'static str,
+    common: &'a [IconEntry],
+    all_title: &'static str,
+    all: &'a [IconEntry],
     query: &str,
-) -> Vec<IconSection> {
+) -> Vec<SectionView<'a>> {
     let mut sections = Vec::new();
 
     if query.is_empty() {
-        // No filter — return both sections as-is
         if !common.is_empty() {
-            sections.push(IconSection {
-                title: common_title.to_string(),
-                entries: common.to_vec(),
+            sections.push(SectionView {
+                title: common_title,
+                entries: SectionEntries::Full(common),
             });
         }
         if !all.is_empty() {
-            sections.push(IconSection {
-                title: all_title.to_string(),
-                entries: all.to_vec(),
+            sections.push(SectionView {
+                title: all_title,
+                entries: SectionEntries::Full(all),
             });
         }
     } else {
-        // Filter both sections
-        let filtered_common: Vec<IconEntry> = common
+        let filtered_common: Vec<&IconEntry> = common
             .iter()
-            .filter(|e| e.name.to_lowercase().contains(query))
-            .cloned()
+            .filter(|e| e.name_lower.contains(query))
             .collect();
-        let filtered_all: Vec<IconEntry> = all
+        let filtered_all: Vec<&IconEntry> = all
             .iter()
-            .filter(|e| e.name.to_lowercase().contains(query))
-            .cloned()
+            .filter(|e| e.name_lower.contains(query))
             .collect();
 
         if !filtered_common.is_empty() {
-            sections.push(IconSection {
-                title: common_title.to_string(),
-                entries: filtered_common,
+            sections.push(SectionView {
+                title: common_title,
+                entries: SectionEntries::Filtered(filtered_common),
             });
         }
         if !filtered_all.is_empty() {
-            sections.push(IconSection {
-                title: all_title.to_string(),
-                entries: filtered_all,
+            sections.push(SectionView {
+                title: all_title,
+                entries: SectionEntries::Filtered(filtered_all),
             });
         }
     }

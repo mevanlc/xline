@@ -1,4 +1,4 @@
-use crate::data::icon_catalog::{IconCatalogData, IconPickerTab, IconSection};
+use crate::data::icon_catalog::{IconCatalogData, IconEntry, IconPickerTab, SectionView};
 use crate::tui::app::IconPickerState;
 use ratatui::{
     Frame,
@@ -8,46 +8,46 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Paragraph},
 };
 
-/// Items in the flattened icon list — either a section header or a selectable icon.
-pub enum FlatItem {
-    Header(String),
-    Icon { icon: String, name: String },
+/// Total number of selectable (non-header) entries across all sections.
+pub fn selectable_count(sections: &[SectionView<'_>]) -> usize {
+    sections.iter().map(|s| s.entries.len()).sum()
 }
 
-/// Flatten sections into a list of headers and icon entries.
-pub fn flatten_sections(sections: &[IconSection]) -> Vec<FlatItem> {
-    let mut items = Vec::new();
-    for section in sections {
-        items.push(FlatItem::Header(section.title.clone()));
-        for entry in &section.entries {
-            items.push(FlatItem::Icon {
-                icon: entry.icon.clone(),
-                name: entry.name.clone(),
-            });
+/// Total number of flat rows (1 header + N entries per section).
+pub fn flat_len(sections: &[SectionView<'_>]) -> usize {
+    sections.iter().map(|s| s.entries.len() + 1).sum()
+}
+
+/// Map a selectable index → flat row index.
+pub fn selectable_to_flat(sections: &[SectionView<'_>], sel: usize) -> Option<usize> {
+    let mut flat = 0;
+    let mut remaining = sel;
+    for s in sections {
+        flat += 1; // header
+        let len = s.entries.len();
+        if remaining < len {
+            return Some(flat + remaining);
         }
+        remaining -= len;
+        flat += len;
     }
-    items
+    None
 }
 
-/// Count the number of selectable (non-header) items in the flat list.
-pub fn selectable_count(flat: &[FlatItem]) -> usize {
-    flat.iter()
-        .filter(|item| matches!(item, FlatItem::Icon { .. }))
-        .count()
-}
-
-/// Map a selectable index (0-based among Icon items only) to a flat-list index.
-fn selectable_to_flat(flat: &[FlatItem], sel: usize) -> usize {
-    let mut count = 0;
-    for (i, item) in flat.iter().enumerate() {
-        if matches!(item, FlatItem::Icon { .. }) {
-            if count == sel {
-                return i;
-            }
-            count += 1;
+/// Look up the IconEntry at a given selectable index.
+pub fn entry_at_selectable<'a>(
+    sections: &'a [SectionView<'a>],
+    sel: usize,
+) -> Option<&'a IconEntry> {
+    let mut remaining = sel;
+    for s in sections {
+        let len = s.entries.len();
+        if remaining < len {
+            return s.entries.get(remaining);
         }
+        remaining -= len;
     }
-    0
+    None
 }
 
 pub fn render(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &IconCatalogData) {
@@ -204,7 +204,6 @@ fn render_text_with_cursor(text: &str, cursor_pos: usize) -> Line<'static> {
 fn render_icon_list(f: &mut Frame, area: Rect, state: &IconPickerState, catalog: &IconCatalogData) {
     let tab = *state.tab.current();
     let sections = catalog.sections(tab, &state.search_query);
-    let flat = flatten_sections(&sections);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -220,31 +219,53 @@ fn render_icon_list(f: &mut Frame, area: Rect, state: &IconPickerState, catalog:
         return;
     }
 
-    // Map selected_index to flat position for highlight
-    let selected_flat = selectable_to_flat(&flat, state.selected_index);
-
-    // Compute scroll to keep selected visible
+    let total_flat = flat_len(&sections);
+    let selected_flat = selectable_to_flat(&sections, state.selected_index);
     let scroll = state.scroll_offset;
+    let view_end = scroll + visible_height;
 
-    let mut lines: Vec<Line> = Vec::new();
-    for (i, item) in flat.iter().enumerate().skip(scroll).take(visible_height) {
-        match item {
-            FlatItem::Header(title) => {
-                let dashes = "\u{2500}".repeat(3);
-                lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("{}\u{2500}{} ", dashes, dashes),
-                        Style::default().fg(Color::Indexed(240)),
-                    ),
-                    Span::styled(title.clone(), Style::default().fg(Color::Indexed(245))),
-                    Span::styled(
-                        format!(" {}", dashes),
-                        Style::default().fg(Color::Indexed(240)),
-                    ),
-                ]));
+    // Walk sections and only emit Line widgets for rows intersecting [scroll, view_end).
+    // This avoids materializing the full 100k-row flat list for the Unicode tab.
+    let mut lines: Vec<Line> = Vec::with_capacity(visible_height);
+    let mut row = 0usize;
+    'outer: for section in &sections {
+        if row >= view_end {
+            break;
+        }
+        // Header row
+        if row >= scroll && row < view_end {
+            let dashes = "\u{2500}".repeat(3);
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{}\u{2500}{} ", dashes, dashes),
+                    Style::default().fg(Color::Indexed(240)),
+                ),
+                Span::styled(section.title, Style::default().fg(Color::Indexed(245))),
+                Span::styled(
+                    format!(" {}", dashes),
+                    Style::default().fg(Color::Indexed(240)),
+                ),
+            ]));
+            if lines.len() == visible_height {
+                break 'outer;
             }
-            FlatItem::Icon { icon, name } => {
-                let is_selected = i == selected_flat;
+        }
+        row += 1;
+        let entries_len = section.entries.len();
+        let entries_end = row + entries_len;
+
+        // Visible window inside this section's entries.
+        let vis_start = scroll.max(row);
+        let vis_end = view_end.min(entries_end);
+        if vis_start < vis_end {
+            for flat_row in vis_start..vis_end {
+                let entry_idx = flat_row - row;
+                let Some(entry) = section.entries.get(entry_idx) else {
+                    break;
+                };
+                let is_selected = Some(flat_row) == selected_flat;
+                let icon = &entry.icon;
+                let name = &entry.name;
                 if is_selected {
                     lines.push(Line::from(vec![
                         Span::styled(format!(" {} ", icon), Style::default().fg(Color::White)),
@@ -272,16 +293,20 @@ fn render_icon_list(f: &mut Frame, area: Rect, state: &IconPickerState, catalog:
                         Span::styled(name.clone(), Style::default().fg(Color::Indexed(250))),
                     ]));
                 }
+                if lines.len() == visible_height {
+                    break 'outer;
+                }
             }
         }
+        row = entries_end;
     }
 
     let para = Paragraph::new(lines);
     f.render_widget(para, inner);
 
     // Page counter in bottom-right of the Icons block border
-    if visible_height > 0 && !flat.is_empty() {
-        let total_pages = flat.len().div_ceil(visible_height);
+    if total_flat > 0 {
+        let total_pages = total_flat.div_ceil(visible_height);
         let current_page = scroll / visible_height + 1;
         let counter = format!(" Page {}/{} ", current_page, total_pages);
         let counter_width = counter.len() as u16;
