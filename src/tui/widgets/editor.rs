@@ -84,7 +84,9 @@ impl FieldSelection {
             }
             if matches!(
                 comp.id,
-                ComponentId::UsageFiveHour | ComponentId::UsageSevenDay
+                ComponentId::ContextWindow
+                    | ComponentId::UsageFiveHour
+                    | ComponentId::UsageSevenDay
             ) {
                 fields.push(Self::UsageValue);
             }
@@ -508,14 +510,16 @@ mod tests {
     }
 
     #[test]
-    fn value_is_only_available_for_the_usage_components() {
+    fn value_is_only_available_for_the_percentage_components() {
         let theme = UserTheme::default_theme();
         let five_hour = theme.get_component(ComponentId::UsageFiveHour).unwrap();
         let seven_day = theme.get_component(ComponentId::UsageSevenDay).unwrap();
         let context = theme.get_component(ComponentId::ContextWindow).unwrap();
+        let cost = theme.get_component(ComponentId::Cost).unwrap();
 
         assert!(FieldSelection::fields_for(five_hour).contains(&FieldSelection::UsageValue));
         assert!(FieldSelection::fields_for(seven_day).contains(&FieldSelection::UsageValue));
-        assert!(!FieldSelection::fields_for(context).contains(&FieldSelection::UsageValue));
+        assert!(FieldSelection::fields_for(context).contains(&FieldSelection::UsageValue));
+        assert!(!FieldSelection::fields_for(cost).contains(&FieldSelection::UsageValue));
     }
 }

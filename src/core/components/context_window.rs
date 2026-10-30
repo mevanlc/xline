@@ -1,14 +1,21 @@
 use super::{Component, ComponentData};
-use crate::config::types::ComponentId;
+use crate::config::types::{ComponentId, UsageValue};
 use crate::core::input::{ContextWindow, CurrentUsage, InputData};
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub struct ContextWindowComponent;
+pub struct ContextWindowComponent {
+    value: UsageValue,
+}
 
 impl ContextWindowComponent {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_value(mut self, value: UsageValue) -> Self {
+        self.value = value;
+        self
     }
 
     fn format_percentage(percentage: f64) -> String {
@@ -79,9 +86,10 @@ impl Component for ContextWindowComponent {
     fn collect(&self, input: &InputData) -> Option<ComponentData> {
         let context = input.context_window.as_ref();
         let percentage = context.and_then(Self::used_percentage);
+        let displayed_percentage = percentage.map(|used| self.value.apply(used));
         let tokens = context.and_then(Self::total_tokens);
 
-        let percentage_display = percentage
+        let percentage_display = displayed_percentage
             .map(Self::format_percentage)
             .unwrap_or_else(|| "-".into());
         let tokens_display = tokens
@@ -124,6 +132,7 @@ impl Component for ContextWindowComponent {
 #[cfg(test)]
 mod tests {
     use super::{Component, ContextWindowComponent};
+    use crate::config::types::UsageValue;
     use crate::core::input::{ContextWindow, CurrentUsage, InputData, Model, Workspace};
 
     fn input(context_window: Option<ContextWindow>) -> InputData {
@@ -208,5 +217,23 @@ mod tests {
         let data = ContextWindowComponent::new().collect(&input(None)).unwrap();
 
         assert_eq!(data.primary, "- · - tokens");
+    }
+
+    #[test]
+    fn remaining_value_inverts_the_reported_percentage() {
+        let data = ContextWindowComponent::new()
+            .with_value(UsageValue::Remaining)
+            .collect(&input(Some(ContextWindow {
+                total_input_tokens: Some(25_000),
+                total_output_tokens: Some(5_000),
+                context_window_size: Some(200_000),
+                used_percentage: Some(12.5),
+                remaining_percentage: Some(87.5),
+                current_usage: None,
+            })))
+            .unwrap();
+
+        assert_eq!(data.primary, "87.5% · 30k tokens");
+        assert_eq!(data.metadata.get("percentage").unwrap(), "12.5");
     }
 }

@@ -1966,7 +1966,11 @@ mod tests {
             UserTheme::default_theme(),
         );
 
-        for id in [ComponentId::UsageFiveHour, ComponentId::UsageSevenDay] {
+        for id in [
+            ComponentId::ContextWindow,
+            ComponentId::UsageFiveHour,
+            ComponentId::UsageSevenDay,
+        ] {
             app.selected_component = app
                 .theme
                 .components

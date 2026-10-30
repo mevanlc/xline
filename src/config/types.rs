@@ -87,7 +87,7 @@ impl fmt::Display for WorktreeOutside {
     }
 }
 
-/// Which side of a rate-limit window the usage components display.
+/// Which side of a percentage-based window (used vs. remaining) a component displays.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UsageValue {
@@ -131,7 +131,7 @@ impl UsageValue {
             .unwrap_or_default()
     }
 
-    /// Apply the setting to a rate-limit percentage reported as "used".
+    /// Apply the setting to a percentage reported as "used".
     pub fn apply(self, used_percentage: f64) -> f64 {
         match self {
             UsageValue::Used => used_percentage,

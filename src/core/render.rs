@@ -259,6 +259,17 @@ pub fn demo_texts_for_components(
 ) -> HashMap<ComponentId, SegmentText> {
     let mut texts = demo_texts_full();
 
+    if let Some(context) = components
+        .iter()
+        .find(|component| component.id == ComponentId::ContextWindow)
+    {
+        let percentage = UsageValue::from_options(&context.options).apply(12.0);
+        texts.insert(
+            ComponentId::ContextWindow,
+            (format!("{percentage:.0}% \u{b7} 24k tokens"), String::new()),
+        );
+    }
+
     for (id, label, used) in [
         (ComponentId::UsageFiveHour, "5h", 23.0),
         (ComponentId::UsageSevenDay, "7d", 41.0),
@@ -686,13 +697,33 @@ mod tests {
     use crate::config::theme::UserTheme;
     use crate::config::types::{
         ComponentId, GIT_OPTION_AUTOHIDE_BRANCH, PR_OPTION_SHOW_REVIEW_STATE, PR_OPTION_SHOW_URL,
-        StyleMode, WORKTREE_OPTION_OUTSIDE_WORKTREES, WorktreeOutside,
+        StyleMode, USAGE_OPTION_VALUE, UsageValue, WORKTREE_OPTION_OUTSIDE_WORKTREES,
+        WorktreeOutside,
     };
 
     use super::{
         PLAIN_POWERLINE_SEPARATOR_GLYPH, RenderItem, build_render_line, demo_texts_for_components,
         render_ansi,
     };
+
+    #[test]
+    fn context_window_demo_tracks_the_value_setting() {
+        let mut theme = UserTheme::default_theme();
+        theme
+            .get_component_mut(ComponentId::ContextWindow)
+            .unwrap()
+            .options
+            .insert(
+                USAGE_OPTION_VALUE.into(),
+                UsageValue::Remaining.as_str().into(),
+            );
+
+        let texts = demo_texts_for_components(&theme.components);
+        assert_eq!(
+            texts.get(&ComponentId::ContextWindow),
+            Some(&("88% \u{b7} 24k tokens".into(), String::new()))
+        );
+    }
 
     #[test]
     fn pull_request_demo_tracks_visible_fields() {

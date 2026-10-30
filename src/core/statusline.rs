@@ -123,7 +123,9 @@ pub fn collect_all_components(
                     .with_osc_hyperlinks(osc_hyperlinks)
                     .collect(input)
             }
-            ComponentId::ContextWindow => ContextWindowComponent::new().collect(input),
+            ComponentId::ContextWindow => ContextWindowComponent::new()
+                .with_value(UsageValue::from_options(&comp_cfg.options))
+                .collect(input),
             ComponentId::UsageFiveHour => FiveHourUsageComponent::new()
                 .with_value(UsageValue::from_options(&comp_cfg.options))
                 .collect(input),
